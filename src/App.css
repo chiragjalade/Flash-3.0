@@ -1,0 +1,17 @@
+.app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  overflow: hidden;
+  background: var(--color-chat-bg);
+}
+
+/* Off-screen SVG holding the liquid-glass displacement filter */
+.glass-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}

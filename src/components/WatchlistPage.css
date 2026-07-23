@@ -1,0 +1,283 @@
+.wpage {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--color-chat-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Tab bar (matches chat) --- */
+.wpage__tabs {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  height: 45.5px;
+  flex-shrink: 0;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.wpage__tab {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+  color: var(--color-tab-inactive);
+}
+
+.wpage__tab--active {
+  color: var(--color-text);
+}
+
+/* --- Body: two columns --- */
+.wpage__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  gap: 55px;
+  padding: 54px 40px 40px 100px;
+  /* scale up the whole watchlist so components read bigger and the section
+     titles match the Spotlight / Upcoming Events titles (13px * 1.15). */
+  zoom: 1.25;
+}
+
+/* --- Shared header + filter chip --- */
+.wl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.wl-heading {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.24px;
+  color: var(--accent-dark);
+}
+
+.wl-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 11px;
+  padding: 0 4px;
+  border: 0.4px solid #eeeeee;
+  border-radius: 1px;
+  background: rgba(247, 245, 245, 0.25);
+  color: #b1b1b1;
+}
+
+.wl-filter__label {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 7px;
+  letter-spacing: -0.28px;
+}
+
+.wl-filter__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7px;
+  height: 7px;
+  padding: 0 1px;
+  border-radius: 1px;
+  background: rgba(229, 229, 229, 0.45);
+  color: var(--accent-dark);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 5px;
+}
+
+/* --- Search column --- */
+.wl-search {
+  width: 285px;
+  flex-shrink: 0;
+}
+
+.wl-searchbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  background: #f6f6f4;
+  border: 0.8px solid #eeeeee;
+  border-radius: 4px;
+}
+
+.wl-searchbox__icon {
+  color: #c7c7c5;
+  flex-shrink: 0;
+}
+
+.wl-searchbox__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 9.5px;
+  letter-spacing: -0.24px;
+  color: var(--accent-dark);
+}
+
+.wl-searchbox__input::placeholder {
+  color: #c7c7c5;
+}
+
+.wl-searchbox__clear {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 7px;
+  letter-spacing: -0.21px;
+  color: rgba(178, 178, 178, 0.6);
+}
+
+.wl-searchbox__clear:hover {
+  color: rgba(178, 178, 178, 0.9);
+}
+
+.wl-results {
+  margin-top: 16px; /* more gap below the search bar */
+  min-height: 250px; /* taller, still grows with content */
+  padding: 12px 12px 12px 13px;
+  background: var(--accent-soft);
+  border: 0.8px solid #eeeeee;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wl-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 9px;
+  margin: 0 -9px; /* stretch fills width; margins bleed the highlight evenly */
+  text-align: left;
+  border-radius: 5px;
+  transition: background-color 0.12s ease;
+}
+
+.wl-row:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.wl-row__logo {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: cover;
+}
+
+.wl-row__name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: -0.3px;
+  color: var(--accent-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wl-row__ticker {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--accent-thumb);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 6.5px;
+  letter-spacing: -0.1px;
+  color: var(--accent-dark);
+}
+
+.wl-results__empty {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 8px;
+  color: #b2b2b2;
+}
+
+/* --- Followed column --- */
+.wl-followed {
+  flex: 1;
+  min-width: 0;
+  max-width: 600px;
+}
+
+.wl-count {
+  margin: 0 0 10px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: -0.2px;
+  color: #b2b2b2;
+}
+
+.wl-followed__card {
+  min-height: 300px;
+  padding: 18px 16px 18px 17px;
+  background: var(--accent-soft);
+  border: 0.8px solid #eeeeee;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wl-skel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wl-skel__thumb {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 1px;
+  background: var(--accent-thumb);
+}
+
+.wl-skel__bar {
+  width: 250px;
+  max-width: calc(100% - 60px);
+  height: 19px;
+  border-radius: 2px;
+  background: var(--accent-thumb);
+}
+
+/* --- Responsive --- */
+@media (max-width: 900px) {
+  .wpage__body {
+    flex-direction: column;
+    gap: 28px;
+    padding: 32px 24px;
+  }
+  .wl-search {
+    width: 100%;
+    max-width: 360px;
+  }
+  .wl-followed {
+    max-width: 100%;
+  }
+}

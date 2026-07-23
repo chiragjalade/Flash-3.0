@@ -1,0 +1,127 @@
+:root {
+  /* ---- Sidebar (B/W default = dark) ---- */
+  --color-sidebar-bg: #1c1c1c;
+  --color-sidebar-text: #ffffff; /* wordmark / nav labels */
+  --color-sidebar-label: #8f8f8f; /* WORKSPACE / RECENTS */
+  --color-sidebar-border: rgba(255, 255, 255, 0.12); /* divider / edge */
+  --color-nav-active-bg: #323232; /* active pill / icon box */
+  --color-nav-active-border: #c8c8c8;
+  --color-profile-bg: #323232;
+  --color-profile-border: #464646;
+  --color-profile-email: #aeaeae;
+  --rail-w: 55px; /* collapsed icon rail */
+
+  /* ---- Chat (light) ---- */
+  --color-text: #000000;
+  --color-border: #dadada; /* chat tab-bar border */
+  --color-chat-bg: #fafaf8; /* chat bkg */
+  --color-tab-inactive: #cacaca; /* History tab / tagline */
+  --color-placeholder: #a2a2a0; /* prompt placeholder */
+  --color-prompt-border: #eae9e5; /* prompt box border */
+  --color-chip-bg: #fdfdfd; /* suggestion */
+  --color-chip-border: #ebebeb;
+  --color-attach-border: #e8e8e6;
+
+  /* ---- Accent (theme-driven). Default here = B/W (monochrome) ---- */
+  --accent: #4b4b4b;
+  --accent-dark: #2b2b2b;
+  --accent-soft: rgba(0, 0, 0, 0.035);
+  --accent-thumb: color-mix(in srgb, var(--accent) 18%, #ffffff);
+  --accent-swatch: linear-gradient(90deg, #1c1c1c 0 50%, #f1f1f1 50% 100%);
+
+  /* ---- Typography ---- */
+  --font-wordmark: "Power Grotesk", "Space Grotesk", sans-serif;
+  --font-display: "PP Pangaia", "Fraunces", Georgia, serif;
+  --font-ui: "Inter", system-ui, sans-serif;
+
+  /* ---- Canvas geometry (exact Figma artboard, node 994:470) ---- */
+  --canvas-w: 1460px;
+  --canvas-h: 1038px;
+  --card-radius: 50px; /* Bkg Glass */
+  --card-inset: 10px;
+  --panel-radius: 45px; /* inner card */
+  --sidebar-w: 244px;
+  --nav-w: 214px;
+  --sidebar-pad-x: 15px;
+}
+
+/* ---- Theme variants (set data-theme on <html> to switch everything) ---- */
+:root[data-theme="blue"] {
+  --accent: #4a72a8;
+  --accent-dark: #395a86;
+  --accent-soft: rgba(74, 114, 168, 0.06);
+  --accent-swatch: #4a72a8;
+
+  /* Sidebar (blue) */
+  --color-sidebar-bg: #4a72a8;
+  --color-sidebar-label: rgba(255, 255, 255, 0.72);
+  --color-sidebar-border: rgba(255, 255, 255, 0.22);
+  --color-nav-active-bg: #35507a;
+}
+
+/* Green theme = exact colours from Figma frames 1225:2158 + 1346:863 (sage) */
+:root[data-theme="green"] {
+  --accent: #7b8570;
+  --accent-dark: #5e6955;
+  --accent-soft: rgba(167, 180, 165, 0.05);
+  --accent-swatch: #7b8570;
+
+  /* Sidebar (sage) — bg #7b8570, active box #546047, profile stays dark */
+  --color-sidebar-bg: #7b8570;
+  --color-sidebar-label: rgba(255, 255, 255, 0.72);
+  --color-sidebar-border: rgba(255, 255, 255, 0.22);
+  --color-nav-active-bg: #546047;
+}
+
+/* Apple "liquid glass" theme — translucent frosted surfaces on an ambient
+   gradient. Effects live in glass.css; colours here are dark-on-light glass. */
+:root[data-theme="glass"] {
+  --accent: #24405e;
+  --accent-dark: #142636;
+  --accent-soft: rgba(255, 255, 255, 0.18);
+  --accent-thumb: rgba(255, 255, 255, 0.45);
+  --accent-swatch: linear-gradient(135deg, #dbe9ff, #ffe1f0 55%, #d9fbe9);
+
+  --color-text: #101c29;
+  --color-chat-bg: transparent;
+  --color-tab-inactive: rgba(16, 28, 41, 0.5);
+  --color-placeholder: rgba(16, 28, 41, 0.5);
+
+  /* Menu keeps the designed B/W (dark) look in the Glass theme */
+  --color-sidebar-bg: #1c1c1c;
+  --color-sidebar-text: #ffffff;
+  --color-sidebar-label: #8f8f8f;
+  --color-sidebar-border: rgba(255, 255, 255, 0.12);
+  --color-nav-active-bg: #323232;
+  --color-nav-active-border: #c8c8c8;
+  --color-profile-bg: #323232;
+  --color-profile-border: #464646;
+  --color-profile-email: #aeaeae;
+}
+
+/* Liquid Glass Pro — an advanced liquid-glass theme (effects in liquid-glass.css,
+   layered on top of the shared glass base). Inherits the dark-on-light glass
+   palette with a cooler, more iridescent accent. */
+:root[data-theme="liquid-glass"] {
+  --accent: #2b3a63;
+  --accent-dark: #141f38;
+  --accent-soft: rgba(255, 255, 255, 0.16);
+  --accent-thumb: rgba(255, 255, 255, 0.5);
+  --accent-swatch: conic-gradient(from 210deg, #a0e0ff, #c9b3ff 40%, #ffe6a8 70%, #a0e0ff);
+
+  --color-text: #0e1a2b;
+  --color-chat-bg: transparent;
+  --color-tab-inactive: rgba(14, 26, 43, 0.5);
+  --color-placeholder: rgba(14, 26, 43, 0.5);
+
+  /* Menu keeps the designed B/W (dark) look */
+  --color-sidebar-bg: #1c1c1c;
+  --color-sidebar-text: #ffffff;
+  --color-sidebar-label: #8f8f8f;
+  --color-sidebar-border: rgba(255, 255, 255, 0.12);
+  --color-nav-active-bg: #323232;
+  --color-nav-active-border: #c8c8c8;
+  --color-profile-bg: #323232;
+  --color-profile-border: #464646;
+  --color-profile-email: #aeaeae;
+}

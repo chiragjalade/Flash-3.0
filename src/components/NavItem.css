@@ -1,0 +1,78 @@
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: var(--nav-w);
+  height: 34px; /* taller active/hover rectangle */
+  padding: 0 14px;
+  border: 0.75px solid transparent; /* active stroke thinned 25% */
+  border-radius: 4px;
+  color: var(--color-sidebar-text);
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item--active,
+.nav-item--active:hover {
+  border-color: transparent;
+  /* Solid fill inside + gradient ring on the border (top->bottom bezel).
+     padding-box fill masks the interior; border-box gradient shows in the
+     0.75px border ring, and both respect the 4px radius. */
+  background:
+    linear-gradient(var(--color-nav-active-bg), var(--color-nav-active-bg))
+      padding-box,
+    linear-gradient(
+        180deg,
+        #cacaca 0%,
+        #3a3a3a 50%,
+        #d6d6d6 100%
+      )
+      border-box;
+}
+
+/* Glass themes: the sliding glass blob is the active indicator, so drop the
+   per-item active rectangle here. Content stays above the blob. */
+:root[data-theme*="glass"] .nav-item--active,
+:root[data-theme*="glass"] .nav-item--active:hover {
+  background: none;
+  border-color: transparent;
+}
+
+:root[data-theme*="glass"] .nav-item {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px; /* icon slot */
+  flex-shrink: 0;
+}
+
+.nav-item__icon img {
+  filter: invert(1); /* black icon -> white on dark bg */
+  transform: scale(1.08); /* icons +8% */
+}
+
+.nav-item__label {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 12.96px; /* 12px + 8% */
+  line-height: 24px;
+  letter-spacing: -0.13px;
+  color: var(--color-sidebar-text);
+  white-space: nowrap;
+}
+
+/* --- Collapsed rail: icon-only, centered, active = box --- */
+.sidebar--collapsed .nav-item {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+}

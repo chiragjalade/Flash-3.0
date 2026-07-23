@@ -1,0 +1,157 @@
+/* ============================================================
+   Liquid Glass PRO  (:root[data-theme="liquid-glass"])
+
+   An advanced liquid-glass theme layered ON TOP of the shared glass base
+   (glass.css already applies to this theme via [data-theme*="glass"]). This
+   file OVERRIDES the component surface to add the effects from
+   github.com/iyinchao/liquid-glass-studio, approximated in CSS + SVG:
+
+     • Refraction + chromatic DISPERSION  → SVG #lg-glass (per-channel displace)
+     • Fresnel reflection                 → brighter rim border + edge highlight
+     • Glare (directional specular)        → cursor-following radial highlight
+     • Gaussian blur                       → stronger backdrop-filter blur
+     • Superellipse                        → larger squircle-ish radius
+     • Edge reflection (from base)         → --g-rx/--g-ry rim shift
+
+   Driven by the same --g-* params as the glass theme (GlassControls panel).
+   ============================================================ */
+
+/* Glare position (cursor %, set from JS) + glare intensity. Registered so the
+   glare eases smoothly instead of snapping. */
+@property --g-gx {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 50%;
+}
+@property --g-gy {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 35%;
+}
+@property --g-glare {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* Same ambient background photo as the Glass theme */
+:root[data-theme="liquid-glass"] .chat,
+:root[data-theme="liquid-glass"] .wpage {
+  background: url("../assets/images/img2.jpg") center / cover no-repeat;
+}
+
+/* Liquid Glass Pro has NO CSS glass surface. Every glass component is rendered
+   entirely by the WebGL layer (<GlassLayer/>), continuously — one constant look,
+   not a hover state. The elements themselves stay transparent (see the
+   `.lg-webgl-active` rule below, applied to every glass surface every frame) so
+   the shader's photo + refraction/dispersion/fresnel/glare/merge shows through,
+   while their DOM content stays crisp on top. There is intentionally no CSS
+   fallback. The set of glass surfaces lives in SELECTOR (GlassLayer.tsx) and the
+   radius list just below. */
+
+/* Superellipse-ish squircle radius on the Pro glass surfaces (drives the
+   WebGL rounded-rect corners — read live from each element's computed radius) */
+:root[data-theme="liquid-glass"] .lg-glass,
+:root[data-theme="liquid-glass"] .prompt,
+:root[data-theme="liquid-glass"] .rdesk-card,
+:root[data-theme="liquid-glass"] .rdesk__spot-card,
+:root[data-theme="liquid-glass"] .rdesk__news-card,
+:root[data-theme="liquid-glass"] .wl-results,
+:root[data-theme="liquid-glass"] .wl-followed__card,
+:root[data-theme="liquid-glass"] .clock-widget__card,
+:root[data-theme="liquid-glass"] .theme-pop {
+  border-radius: calc(var(--g-radius, 12px) * 0.6);
+}
+
+/* ============================================================
+   WebGL glass mode (data-glass-webgl="on", set by <GlassLayer/>)
+
+   Every glass surface is rendered by the WebGL layer (smooth-min union → the
+   dragged clock fuses into any element it overlaps), continuously. GlassLayer
+   tags every visible glass surface with `.lg-webgl-active` each frame, which
+   strips any DOM surface styling (incl. the base Glass theme's frost, which also
+   matches [data-theme*="glass"]) so only the shader's glass shows. The page
+   background is transparent so the canvas photo shows through.
+   ============================================================ */
+:root[data-theme="liquid-glass"] .lg-webgl-active {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  filter: none !important; /* drop the base theme's chromatic-aberration filter */
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* let the WebGL canvas (photo + glass) show through the page background */
+:root[data-glass-webgl="on"][data-theme="liquid-glass"] .chat,
+:root[data-glass-webgl="on"][data-theme="liquid-glass"] .wpage {
+  background: transparent !important;
+}
+
+/* "Latest Post" / "Watchlist" section headings → white over the glass */
+:root[data-theme="liquid-glass"] .rdesk__latest-head {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* Prompt field: a little extra padding so the placeholder/text sits off the edge */
+:root[data-theme="liquid-glass"] .prompt__input {
+  padding: 4px 8px;
+}
+
+/* Attach (+) and Send buttons → dark translucent glass, squarish, ~40% bigger,
+   with the same hover-lift / press feel. */
+:root[data-theme="liquid-glass"] .prompt__attach,
+:root[data-theme="liquid-glass"] .prompt__send {
+  width: 32px; /* ~25% bigger than the 25/26px originals */
+  height: 32px;
+  border-radius: 10px; /* squarish, not a circle */
+  background: rgba(12, 15, 22, 0.82) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.1) brightness(0.9);
+  backdrop-filter: blur(8px) saturate(1.1) brightness(0.9);
+  border: none !important;
+  filter: none;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.16),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4),
+    0 3px 8px -3px rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.92) !important;
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+:root[data-theme="liquid-glass"] .prompt__attach:hover,
+:root[data-theme="liquid-glass"] .prompt__send:hover {
+  transform: translateY(-1px);
+  background: rgba(30, 36, 48, 0.78);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.22),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4),
+    0 6px 14px -4px rgba(0, 0, 0, 0.55);
+}
+:root[data-theme="liquid-glass"] .prompt__attach:active,
+:root[data-theme="liquid-glass"] .prompt__send:active {
+  transform: translateY(0) scale(0.92);
+  background: rgba(10, 13, 19, 0.82);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 2px 5px -3px rgba(0, 0, 0, 0.45);
+}
+/* scale the icons up to match the bigger buttons */
+:root[data-theme="liquid-glass"] .prompt__attach {
+  font-size: 21px;
+}
+:root[data-theme="liquid-glass"] .prompt__send img {
+  width: 15px;
+  height: 15px;
+}
+
+/* Prompt placeholder: larger + a subtle white, with a soft shadow for legibility
+   over the bright glass/photo */
+:root[data-theme="liquid-glass"] .prompt__input::placeholder {
+  color: rgba(0, 0, 0, 0.38);
+  font-size: 15px;
+}
+

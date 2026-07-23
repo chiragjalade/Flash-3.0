@@ -1,0 +1,61 @@
+/* TEMP WebGL metaball glass playground (Liquid Glass Pro only) */
+
+/* full-screen render layer — pointer-events pass through to the app; only the
+   drag handles below are interactive */
+.glassblob-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
+
+/* invisible circular drag handle sitting over each blob */
+.glassblob-handle {
+  position: fixed;
+  z-index: 41;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.glassblob-handle:active {
+  cursor: grabbing;
+}
+
+/* collapse / show button */
+.lg-blob-toggle {
+  position: fixed;
+  z-index: 56;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(20, 26, 38, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+
+.lg-blob-toggle--collapse {
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+}
+
+.lg-blob-toggle--show {
+  left: 50%;
+  top: 46px;
+  transform: translateX(-50%);
+  width: auto;
+  height: auto;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+}

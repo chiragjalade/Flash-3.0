@@ -1,0 +1,259 @@
+.sidebar {
+  position: relative;
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-sidebar-border);
+  padding: 24px var(--sidebar-pad-x) 26px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    width 0.24s ease,
+    padding 0.24s ease;
+}
+
+/* --- Header: logo + wordmark + collapse toggle --- */
+.sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.sidebar__logo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+
+.sidebar__logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+
+.sidebar__logo-toggle {
+  display: none;
+  width: 18px;
+  height: 18px;
+  filter: invert(1); /* black icon -> white on dark bg */
+}
+
+.sidebar__wordmark {
+  font-family: var(--font-wordmark);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 24px;
+  letter-spacing: -0.8px;
+  color: var(--color-sidebar-text);
+  white-space: nowrap;
+}
+
+.sidebar__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  opacity: 0.75;
+}
+
+.sidebar__toggle img {
+  width: 16px;
+  height: 16px;
+  filter: invert(1); /* black icon -> white on dark bg */
+}
+
+.sidebar__toggle:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* --- Sections --- */
+/* Positioning context for the sliding glass blob indicator */
+.sidebar__nav {
+  position: relative;
+}
+
+.sidebar__section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  position: relative;
+  z-index: 1; /* nav content sits above the blob */
+}
+
+/* --- Liquid-glass sliding "blob" active indicator --- */
+.nav-blob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2; /* ON TOP of the icon/label so it refracts them through the glass */
+  pointer-events: none; /* clicks still reach the buttons underneath */
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  /* refraction + chromatic dispersion of the content behind the blob (no blur,
+     so the icon/label stay legible — just a subtle glassy warp + colour fringe) */
+  -webkit-backdrop-filter: saturate(1.5);
+  backdrop-filter: saturate(1.5) url(#menu-glass);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.18),
+    0 6px 16px -7px rgba(0, 0, 0, 0.55);
+  transform-origin: center;
+  will-change: translate, scale, transform, border-radius;
+  /* the glide between items — gentle overshoot spring; transform carries the
+     hover tilt/translate/stretch with a springy overshoot for the jiggle */
+  transition:
+    translate 0.55s cubic-bezier(0.34, 1.28, 0.5, 1),
+    width 0.45s cubic-bezier(0.34, 1.28, 0.5, 1),
+    height 0.45s cubic-bezier(0.34, 1.28, 0.5, 1),
+    transform 0.3s cubic-bezier(0.34, 1.55, 0.5, 1);
+}
+
+/* Cursor-following glare — a soft highlight that tracks the mouse over/near the
+   blob (position + intensity set from JS as --blob-gx/--blob-gy/--blob-glare). */
+.nav-blob::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* bright band hugging the edge that faces the cursor (angle set from JS) */
+  background: linear-gradient(
+    var(--blob-angle, 0deg),
+    transparent 64%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  opacity: var(--blob-glare, 0);
+  mix-blend-mode: screen;
+  transition: opacity 0.2s ease;
+}
+
+/* while travelling: morph rectangle → blob + stretch along the path, then settle */
+.nav-blob--moving {
+  animation: nav-blob-jiggle 0.62s cubic-bezier(0.34, 1.2, 0.5, 1);
+}
+
+@keyframes nav-blob-jiggle {
+  0% {
+    scale: 1 1;
+    border-radius: 9px;
+  }
+  30% {
+    scale: 0.9 1.16; /* stretch vertically along travel */
+    border-radius: 22px; /* blob */
+  }
+  55% {
+    scale: 1.06 0.93;
+    border-radius: 20px;
+  }
+  78% {
+    scale: 0.98 1.04;
+    border-radius: 13px;
+  }
+  100% {
+    scale: 1 1;
+    border-radius: 9px;
+  }
+}
+
+.sidebar__section--workspace {
+  margin-top: 96px;
+}
+
+.sidebar__section--recents {
+  margin-top: 20px;
+}
+
+.sidebar__label {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 24px;
+  color: var(--color-sidebar-label);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar__divider {
+  height: 1px;
+  width: var(--nav-w);
+  margin-top: 22px;
+  background: var(--color-sidebar-border);
+}
+
+/* Profile card pinned to the bottom of the sidebar. */
+.profile {
+  margin-top: auto;
+}
+
+/* ============================================================
+   Collapsed state: 55px icon-only rail
+   ============================================================ */
+.sidebar--collapsed {
+  width: var(--rail-w);
+  padding-left: 0;
+  padding-right: 0;
+  align-items: center;
+}
+
+.sidebar--collapsed .sidebar__header {
+  justify-content: center;
+}
+
+.sidebar--collapsed .sidebar__wordmark,
+.sidebar--collapsed .sidebar__toggle,
+.sidebar--collapsed .sidebar__label,
+.sidebar--collapsed .nav-item__label,
+.sidebar--collapsed .profile__info,
+.sidebar--collapsed .profile__menu {
+  display: none;
+}
+
+.sidebar--collapsed .sidebar__section {
+  align-items: center;
+}
+
+.sidebar--collapsed .sidebar__list {
+  align-items: center;
+}
+
+.sidebar--collapsed .sidebar__divider {
+  width: 30px;
+}
+
+/* Collapsed: hovering the logo reveals the expand (panel) icon. */
+.sidebar--collapsed .sidebar__logo-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar--collapsed .sidebar__logo-btn:hover .sidebar__logo {
+  display: none;
+}
+
+.sidebar--collapsed .sidebar__logo-btn:hover .sidebar__logo-toggle {
+  display: block;
+}

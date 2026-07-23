@@ -1,0 +1,47 @@
+/* PP Pangaia — the headline typeface from the Figma design.
+   Licensed font (Pangram Pangram). The .otf files in src/assets/fonts/ are
+   bundled by Bun via the relative url() references below. local() is tried
+   first so an installed copy wins. The headline uses weight 500. */
+
+@font-face {
+  font-family: "PP Pangaia";
+  font-style: normal;
+  font-weight: 200;
+  font-display: swap;
+  src:
+    local("PP Pangaia Ultralight"),
+    url("../assets/fonts/PPPangaia-Ultralight-BF654c530cd00f1.otf")
+      format("opentype");
+}
+
+@font-face {
+  font-family: "PP Pangaia";
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src:
+    local("PP Pangaia Medium"),
+    local("PPPangaia-Medium"),
+    url("../assets/fonts/PPPangaia-Medium.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "PP Pangaia";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local("PP Pangaia Bold"),
+    url("../assets/fonts/PPPangaia-Bold-BF654c530cc27f8.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "PP Pangaia";
+  font-style: italic;
+  font-weight: 400 500;
+  font-display: swap;
+  src:
+    local("PP Pangaia Medium Italic"),
+    url("../assets/fonts/PPPangaia-MediumItalic-BF654c530bedffb.otf")
+      format("opentype");
+}

@@ -1,0 +1,408 @@
+/* Square analog-clock widget, fixed top-right, collapsible. Theme-driven via the
+   accent tokens; the glass theme's frosted look is layered on in glass.css. */
+.clock-widget {
+  position: fixed;
+  top: 60px; /* clear the Chat / History tab bar at the top */
+  right: 14px;
+  z-index: 60;
+  font-family: var(--font-ui);
+
+  /* responsive square size (−10%) */
+  --cw-size: clamp(94px, 9.9vw, 130px);
+
+  /* theme-driven surface + clock colours (overridden per theme where needed) */
+  --cw-card-bg: #ffffff;
+  --cw-card-border: rgba(0, 0, 0, 0.08);
+  --cw-face: #ffffff;
+  --cw-ring: rgba(0, 0, 0, 0.1);
+  --cw-tick: color-mix(in srgb, var(--accent) 45%, transparent);
+  --cw-hand: var(--accent-dark);
+  --cw-sec: #e5484d;
+}
+
+/* --- Expanded square card --- */
+.clock-widget__card {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--cw-size);
+  height: var(--cw-size);
+  padding: 10px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.clock-widget__card:active {
+  cursor: grabbing;
+}
+
+.clock-widget__card {
+  border-radius: 16px;
+  background: var(--cw-card-bg);
+  border: 1px solid var(--cw-card-border);
+  box-shadow: 0 12px 30px -14px rgba(18, 26, 40, 0.4);
+  /* grow FROM the top-right corner, where the small button sits, so the clock
+     appears to emerge out of it */
+  transform-origin: top right;
+  will-change: transform;
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.42s ease;
+}
+
+.clock-widget--collapsed .clock-widget__card {
+  opacity: 0;
+  /* shrink down to roughly the (smaller) button's size at its corner, so the
+     clock unfolds out to the left as it grows back to full size */
+  transform: scale(0.2);
+  pointer-events: none;
+}
+
+/* Initial snap of the theme-entry emerge: no animation, so the clock starts
+   cleanly AS the button before oozing out of it */
+.clock-widget--emerge-snap .clock-widget__card,
+.clock-widget--emerge-snap .clock-widget__mini {
+  transition: none !important;
+}
+
+/* ============================================================
+   Liquid Glass merge (classes set by ClockWidget from LgMode):
+     .clock-widget--in   clock merged INTO the button (tiny, at the corner)
+     .clock-widget--out  clock demerged: full size, to the LEFT of the button
+   The card is positioned by `right` (so the hover-tilt transform doesn't fight
+   it) and scaled via transform. It always stays within the WebGL merge reach of
+   the (always-visible) button, so the liquid neck plays on every move.
+   ============================================================ */
+
+/* CARD — smooth slow morph. `right` slides it, `scale` shrinks it into the
+   button, opacity is asymmetric (quick fade-in going OUT; delayed fade going IN
+   so it stays glass while shrinking and the neck shows the whole way). */
+.clock-widget--lg .clock-widget__card {
+  right: 60px; /* base = the OUT spot */
+  transform-origin: top right;
+  border-radius: 8px; /* matches the button */
+}
+/* The card GLASS stays opacity:1 the whole time (so you SEE it translate + scale,
+   and the neck stays live). The button stays clean because the clock+button are
+   only WebGL-mergeable while .clock-widget--merging is set (during the move) —
+   at rest they hard-union into a clean button. Only the dial content fades. */
+/* Move-out: glide out of the button, overshoot a touch past the final spot, then
+   settle with a small damped wiggle. Keyframe (not a transition) so it can bounce. */
+@keyframes cw-emerge {
+  0% {
+    transform: translateX(60px) scale(0.222);
+    animation-timing-function: cubic-bezier(0.36, 0, 0.28, 1); /* glide out */
+  }
+  58% {
+    transform: translateX(-5px) scale(1.045); /* overshoot past rest */
+    animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1); /* smooth swing back */
+  }
+  80% {
+    transform: translateX(1.4px) scale(0.99); /* gentle counter-swing */
+    animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1);
+  }
+  100% {
+    transform: translateX(0) scale(1); /* settle, eased both ends */
+  }
+}
+.clock-widget--out .clock-widget__card {
+  transform: translateX(0) scale(1); /* resting spot after the animation */
+  animation: cw-emerge 0.78s linear;
+}
+.clock-widget--in .clock-widget__card {
+  transform: translateX(60px) scale(0.222); /* button-sized, on the button */
+  pointer-events: none;
+  transition: transform 1.5s cubic-bezier(0.45, 0, 0.15, 1);
+}
+
+/* dial content fades so the merged-in state reads as just the button; fades in
+   quickly on demerge, out near the end of merge-in (stays visible while shrinking) */
+.clock-widget--out .clock-widget__dial {
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+.clock-widget--in .clock-widget__dial {
+  opacity: 0;
+  transition: opacity 0.35s ease 1s;
+}
+
+/* the small button wiggles back to its original shape once the clock has cleared
+   out / finished merging in (triggered by a transient .clock-widget--jiggle) */
+@keyframes cw-btn-settle {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.11); }
+  50% { transform: scale(0.94); }
+  72% { transform: scale(1.03); }
+  88% { transform: scale(0.99); }
+  100% { transform: scale(1); }
+}
+.clock-widget--jiggle .clock-widget__mini {
+  animation: cw-btn-settle 0.65s ease-out;
+}
+
+/* BUTTON — always visible, pinned to the corner, squarish, white icon */
+.clock-widget--lg .clock-widget__mini {
+  position: fixed;
+  top: 60px;
+  right: 14px;
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+  border-radius: 8px; /* squarish, not a circle */
+  color: #fff; /* icon uses currentColor → white */
+}
+@media (max-width: 640px) {
+  .clock-widget--lg .clock-widget__mini {
+    top: 52px;
+    right: 10px;
+  }
+}
+
+/* the collapse (−) control isn't used in the liquid-glass merge model */
+.clock-widget--lg .clock-widget__collapse {
+  display: none;
+}
+
+/* timezone pill follows the card's current position */
+.clock-widget--out .clock-widget__tz {
+  right: 60px;
+}
+.clock-widget--in .clock-widget__tz {
+  right: 0;
+}
+
+.clock-widget__collapse {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  opacity: 0.55;
+  cursor: pointer;
+  z-index: 4;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.clock-widget__collapse:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* Tilt wrapper — fills the card; holds the hover tilt transform in liquid-glass
+   so the card's own transform is free for the merge/demerge morph. */
+.cw-tilt {
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+/* --- Circular dial inside the square --- */
+.clock-widget__dial {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--cw-face);
+  border: 1px solid var(--cw-ring);
+  overflow: hidden;
+}
+
+/* Hour ticks: each wrapper fills the dial and is rotated; the tick sits at top */
+.cw-tick-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.cw-tick {
+  width: 1.5px;
+  height: 8%;
+  margin-top: 5%;
+  border-radius: 1px;
+  background: var(--cw-tick);
+}
+
+.cw-tick--major {
+  width: 2.5px;
+  height: 11%;
+  background: var(--cw-hand);
+}
+
+/* Hands pivot at the dial centre (bottom-centre origin), pointing up at 0deg */
+.cw-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  transform-origin: bottom center;
+  border-radius: 4px;
+  background: var(--cw-hand);
+}
+
+/* While switching zones, ease the hands to the new time (added transiently) */
+.clock-widget__dial.is-animating .cw-hand {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cw-hand--hour {
+  width: 4px;
+  height: 26%;
+  margin-left: -2px;
+}
+
+.cw-hand--min {
+  width: 3px;
+  height: 34%;
+  margin-left: -1.5px;
+  z-index: 2;
+}
+
+.cw-hand--sec {
+  width: 1.5px;
+  height: 40%;
+  margin-left: -0.75px;
+  background: var(--cw-sec);
+  z-index: 3;
+}
+
+.cw-cap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--cw-sec);
+  z-index: 4;
+}
+
+/* --- Collapsed round button --- */
+.clock-widget__mini {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 28.84px; /* 30% smaller than 40px, then +3% */
+  height: 28.84px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--cw-card-bg);
+  border: 1px solid var(--cw-card-border);
+  box-shadow: 0 8px 20px -10px rgba(18, 26, 40, 0.45);
+  color: var(--accent-dark);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.clock-widget--collapsed .clock-widget__mini {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.clock-widget__mini:hover {
+  color: var(--accent);
+}
+
+/* --- Timezone selector box (below the clock, hover-reveal) --- */
+.clock-widget__tz {
+  position: absolute;
+  top: calc(var(--cw-size) + 8px);
+  right: 0;
+  width: var(--cw-size);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border-radius: 9px;
+  /* dark frosted pill so the white text/icons read in every theme */
+  background: rgba(20, 26, 38, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  backdrop-filter: blur(12px) saturate(1.3);
+  color: #ffffff;
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  /* Hidden by default; revealed on hover. Fades + blurs IN PLACE (no move).
+     transform is reserved for the hover tilt. !important keeps the animation
+     from being replaced by the shared glass rule (which made it snap). */
+  opacity: 0;
+  filter: blur(6px) !important;
+  pointer-events: none;
+  transition:
+    opacity 0.45s ease,
+    filter 0.45s ease,
+    transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+
+.clock-widget__tz--show {
+  opacity: 1;
+  filter: blur(0) !important;
+  pointer-events: auto;
+}
+
+.clock-widget__tz-label {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: clamp(8px, 1.1vw, 10px);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clock-widget__tz-arrow {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.clock-widget__tz-arrow:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.clock-widget__tz-arrow:active {
+  transform: scale(0.9);
+}
+
+/* Tuck the widget in a touch on small screens */
+@media (max-width: 640px) {
+  .clock-widget {
+    top: 52px;
+    right: 10px;
+    --cw-size: clamp(76px, 23.4vw, 101px);
+  }
+}

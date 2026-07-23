@@ -1,0 +1,334 @@
+.chat {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--color-chat-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Tab bar --- */
+.chat__tabs {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  height: 45.5px; /* 30px +35% +25% -10% */
+  flex-shrink: 0;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chat__tab {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 15px; /* 12px + 25% */
+  line-height: 24px;
+  letter-spacing: -0.3px;
+  color: var(--color-tab-inactive);
+}
+
+.chat__tab--active {
+  color: var(--color-text);
+}
+
+/* --- Stage: holds the hero, pull-up button, and research desk --- */
+.chat__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --- Hero (headline + prompt + tagline) --- */
+.chat__hero {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  transform: translateY(-40px);
+  /* No opacity animation: fading an ancestor isolates a compositing group
+     that disables the prompt box's backdrop-filter (glass) and makes it
+     lag on the way back. Slide it out instead, and keep it promoted. */
+  will-change: transform;
+  /* gentle overshoot spring → the hero settles with a small, smooth bounce */
+  transition: transform 0.85s cubic-bezier(0.25, 1.1, 0.5, 1);
+}
+
+.chat__stage--up .chat__hero {
+  transform: translateY(-150%);
+  pointer-events: none;
+}
+
+.chat__headline {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 28px;
+  letter-spacing: -0.22px;
+  color: var(--color-text);
+  text-align: center;
+}
+
+/* --- Prompt box (430 x 85, +15%, then +10%) --- */
+.prompt {
+  width: 544px; /* 494.5 * 1.1 */
+  min-height: 107.5px; /* grows taller as the field wraps */
+  margin-top: 65px;
+  background: #ffffff;
+  border: 1px solid var(--color-prompt-border);
+  border-radius: 10.1px;
+  padding: 8.86px 16.45px 7.59px;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt__input {
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  width: 100%;
+  min-height: 30px;
+  max-height: 108px; /* 6 lines (6 * 18px) — then scroll */
+  overflow-y: auto;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 13.34px; /* placeholder: 9.2 * 1.45 */
+  line-height: 18px;
+  letter-spacing: -0.27px;
+  color: var(--color-text);
+  margin-bottom: 9px; /* gap between the text and the button row */
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+
+/* Sleek, slim scrollbar (WebKit) */
+.prompt__input::-webkit-scrollbar {
+  width: 4px;
+}
+
+.prompt__input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prompt__input::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+}
+
+.prompt__input::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.prompt__input::placeholder {
+  color: var(--color-placeholder);
+}
+
+.prompt__row {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12.02px;
+}
+
+.prompt__attach {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24.97px; /* 22.7 * 1.1 */
+  height: 24.97px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-attach-border);
+  background: #ffffff;
+  font-family: var(--font-ui);
+  font-size: 17.71px; /* 16.1 * 1.1 */
+  line-height: 1;
+  color: var(--color-text);
+  letter-spacing: -0.354px;
+}
+
+.prompt__chip {
+  flex-shrink: 0;
+  height: 25.47px; /* 23.15 * 1.1 */
+  display: flex;
+  align-items: center;
+  padding: 0 10.12px;
+  background: var(--color-chip-bg);
+  border: 0.8px solid var(--color-chip-border);
+  border-radius: 3.16px;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 9.49px; /* 8.625 * 1.1 */
+  letter-spacing: -0.19px;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+/* Circular dark-glass send button (button mode: hover lift + press) */
+.prompt__send {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(20, 24, 32, 0.62);
+  -webkit-backdrop-filter: blur(6px) saturate(1.3);
+  backdrop-filter: blur(6px) saturate(1.3);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.35),
+    0 3px 8px -3px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.14s ease,
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.prompt__send:hover {
+  transform: translateY(-1px);
+  background: rgba(28, 34, 46, 0.72);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.34),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.35),
+    0 6px 14px -4px rgba(0, 0, 0, 0.5);
+}
+
+.prompt__send:active {
+  transform: translateY(0) scale(0.92);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.45),
+    0 2px 5px -3px rgba(0, 0, 0, 0.4);
+}
+
+.prompt__send img {
+  width: 13px;
+  height: 13px;
+}
+
+/* --- Tagline (+40%) --- */
+.chat__tagline {
+  margin-top: 2px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 12.36px; /* 9.2 * 1.4 * 0.96 */
+  line-height: 28px;
+  letter-spacing: -0.494px;
+  color: var(--color-tab-inactive);
+  text-align: center;
+}
+
+/* --- Research Desk panel (peeks from bottom, rises to fill) --- */
+.chat__desk {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  transform: translateY(66%);
+  transition: transform 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat__stage--up .chat__desk {
+  transform: translateY(0);
+}
+
+/* Apple-style "glass stretch": a slow, gentle single vertical stretch as the
+   desk settles (on both rise and lower). Lives on the scroll layer so it
+   composes with the parent's slide transform without fighting it. */
+.chat__stage--bounce .chat__desk-scroll {
+  animation: desk-land 0.85s cubic-bezier(0.33, 0, 0.25, 1);
+  will-change: transform;
+}
+
+@keyframes desk-land {
+  0% {
+    transform: scaleY(1);
+  }
+  55% {
+    transform: scaleY(1.014);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.chat__desk-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transform-origin: center bottom;
+  padding-top: 12px;
+}
+
+/* BlurLayer — bottom fade-to-white scrim with a soft backdrop blur
+   (Figma: gradient rgba(252,255,249,0) -> #fcfff9, backdrop-blur 2px). */
+.chat__blur {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 167px;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(252, 255, 249, 0) 0%,
+    #fcfff9 100%
+  );
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 65%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 65%);
+}
+
+/* --- Pull-up button (cycles the desk up / down) --- */
+.chat__pull {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 37%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+  color: #b0b0ac;
+  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.15);
+  transition:
+    bottom 0.85s cubic-bezier(0.25, 1.1, 0.5, 1),
+    color 0.15s ease;
+}
+
+.chat__pull:hover {
+  color: var(--color-text);
+}
+
+.chat__pull svg {
+  width: 10.5px;
+  height: 10.5px;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chat__stage--up .chat__pull {
+  bottom: 20px;
+}
+
+.chat__stage--up .chat__pull svg {
+  transform: rotate(180deg);
+}

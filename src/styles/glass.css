@@ -1,0 +1,277 @@
+/* ============================================================
+   Liquid Glass theme  (:root[data-theme*="glass"])
+   The MENU keeps its designed B/W look (see tokens.css). The
+   background photo lives on the chat playground, and the content
+   COMPONENTS / BUTTONS carry the glass — their look is driven by
+   the CSS variables set live from the parameter panel:
+     --g-blur --g-saturate --g-brightness --g-opacity
+     --g-edge --g-radius --g-shadow   (+ SVG #liquid-glass scale)
+   ============================================================ */
+
+/* Mouse-reactive edge reflection offset (set per-component from JS on pointer
+   move; registered so box-shadow transitions smoothly instead of snapping).
+   The rim highlight is translated OPPOSITE the cursor for a subtle tilt/parallax
+   like Apple's liquid glass. Defaults to 0 → no shift when idle. */
+@property --g-rx {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --g-ry {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Full-cover background image on the playground (never the menu). */
+:root[data-theme*="glass"] .chat,
+:root[data-theme*="glass"] .wpage {
+  background: url("../assets/images/img2.jpg") center / cover no-repeat;
+}
+
+/* Shared glass treatment for content components + buttons */
+:root[data-theme*="glass"] .prompt,
+:root[data-theme*="glass"] .rdesk-card,
+:root[data-theme*="glass"] .rdesk__spot-card,
+:root[data-theme*="glass"] .rdesk__news-card,
+:root[data-theme*="glass"] .wl-results,
+:root[data-theme*="glass"] .wl-followed__card,
+:root[data-theme*="glass"] .wl-searchbox,
+:root[data-theme*="glass"] .theme-pop,
+:root[data-theme*="glass"] .prompt__attach,
+:root[data-theme*="glass"] .prompt__chip,
+:root[data-theme*="glass"] .chat__pull,
+:root[data-theme*="glass"] .wl-filter,
+:root[data-theme*="glass"] .clock-widget__card,
+:root[data-theme*="glass"] .clock-widget__mini,
+:root[data-theme*="glass"] .rdesk__filter {
+  /* fill (white) + tint overlay */
+  background:
+    linear-gradient(
+      rgba(150, 180, 225, var(--g-tint, 0)),
+      rgba(150, 180, 225, var(--g-tint, 0))
+    ),
+    rgba(255, 255, 255, var(--g-opacity, 0.18));
+  -webkit-backdrop-filter: blur(var(--g-blur, 3px))
+    saturate(var(--g-saturate, 1.6)) brightness(var(--g-brightness, 1));
+  backdrop-filter: blur(var(--g-blur, 3px)) saturate(var(--g-saturate, 1.6))
+    brightness(var(--g-brightness, 1)) url(#liquid-glass);
+  /* chromatic aberration approximation (red/cyan edge ghosting) */
+  filter:
+    drop-shadow(calc(var(--g-chrom, 0) * 4px) 0 0 rgba(255, 40, 90, 0.22))
+    drop-shadow(calc(var(--g-chrom, 0) * -4px) 0 0 rgba(40, 170, 255, 0.22));
+  /* fresnel → border/rim brightness */
+  border: 1px solid rgba(255, 255, 255, var(--g-fresnel, 0.5));
+  box-shadow:
+    /* top-left edge highlight (+ zRadius bevel depth), slid opposite the cursor */
+    inset calc(1px + var(--g-rx, 0px)) calc(1px + var(--g-ry, 0px))
+      calc(1px + var(--g-zradius, 20px) * 0.06)
+      rgba(255, 255, 255, var(--g-edge, 0.6)),
+    /* specular gloss — drifts vertically with the tilt for a liquid feel */
+    inset 0 calc(2px + var(--g-ry, 0px)) 5px
+      rgba(255, 255, 255, var(--g-specular, 0.3)),
+    /* bottom-right rim highlight, slid opposite the cursor */
+    inset calc(-1px + var(--g-rx, 0px)) calc(-1px + var(--g-ry, 0px)) 1px
+      rgba(255, 255, 255, calc(var(--g-edge, 0.6) * 0.3)),
+    /* drop shadow */
+    0 var(--g-shadow-y, 6px) var(--g-shadow-spread, 12px) -6px
+      rgba(18, 26, 40, var(--g-shadow, 0.3));
+  /* smooth the reflection so it eases toward the cursor / back to rest;
+     transform keeps the spotlight cards' cursor-follow tilt smooth too */
+  transition:
+    --g-rx 0.18s ease-out,
+    --g-ry 0.18s ease-out,
+    transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Clock widget in glass: the dial goes transparent so the frosted card shows
+   through; hands/ticks stay dark for contrast over the bright ambient photo. */
+:root[data-theme*="glass"] .clock-widget {
+  --cw-card-bg: transparent;
+  --cw-card-border: transparent;
+  --cw-face: transparent;
+  --cw-ring: rgba(255, 255, 255, 0.45);
+  --cw-tick: rgba(20, 38, 54, 0.5);
+  --cw-hand: #142636;
+  --cw-sec: #e5484d;
+}
+
+/* Card-like components take the adjustable corner radius */
+:root[data-theme*="glass"] .prompt,
+:root[data-theme*="glass"] .rdesk-card,
+:root[data-theme*="glass"] .rdesk__spot-card,
+:root[data-theme*="glass"] .rdesk__news-card,
+:root[data-theme*="glass"] .wl-results,
+:root[data-theme*="glass"] .wl-followed__card,
+:root[data-theme*="glass"] .clock-widget__card,
+:root[data-theme*="glass"] .theme-pop {
+  border-radius: var(--g-radius, 12px);
+}
+
+/* Search bar keeps a small, sharp radius even in the Glass theme */
+:root[data-theme*="glass"] .wl-searchbox {
+  border-radius: 4px;
+}
+
+/* Small round buttons keep their own shape but read a touch more solid */
+:root[data-theme*="glass"] .prompt__attach,
+:root[data-theme*="glass"] .chat__pull {
+  background: rgba(255, 255, 255, calc(var(--g-opacity, 0.18) + 0.16));
+}
+
+/* Send button stays dark glass — add refraction from the displacement map */
+:root[data-theme*="glass"] .prompt__send {
+  -webkit-backdrop-filter: blur(6px) saturate(1.3);
+  backdrop-filter: blur(6px) saturate(1.3) url(#liquid-glass);
+}
+
+/* Treemap heat-map tiles as liquid glass: keep each tile's hue as a translucent
+   tint (--tm-color, set per tile from JS), frost what's behind it, and add a
+   soft rim highlight. The white grid background drops out so the card's glass
+   shows through the 2px gaps. */
+:root[data-theme*="glass"] .tm,
+:root[data-theme*="glass"] .tm-focus {
+  background: transparent;
+}
+
+:root[data-theme*="glass"] .tm-tile {
+  /* default: 45% less tint (≈0.55× the hover coverage) */
+  background: linear-gradient(
+    color-mix(in srgb, var(--tm-color, #fff) 32%, transparent),
+    color-mix(in srgb, var(--tm-color, #fff) 19%, transparent)
+  );
+  -webkit-backdrop-filter: blur(6px) saturate(1.5);
+  backdrop-filter: blur(6px) saturate(1.5);
+  filter: saturate(1.4) brightness(1.02);
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.5),
+    inset -1px -1px 1px rgba(255, 255, 255, 0.12);
+  transition:
+    background 0.18s ease,
+    filter 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+:root[data-theme*="glass"] .tm-tile:hover {
+  /* hover: full tint intensity */
+  background: linear-gradient(
+    color-mix(in srgb, var(--tm-color, #fff) 58%, transparent),
+    color-mix(in srgb, var(--tm-color, #fff) 34%, transparent)
+  );
+  filter: saturate(1.5) brightness(1.06);
+  box-shadow:
+    inset 1px 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Keep the tile labels legible over the translucent glass */
+:root[data-theme*="glass"] .tm-name,
+:root[data-theme*="glass"] .tm-seg-name {
+  color: #16212e;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* BlurLayer over the photo: frost (backdrop blur) that fades in toward the
+   bottom instead of the opaque-white fade used in the other themes. */
+:root[data-theme*="glass"] .chat__blur {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  -webkit-backdrop-filter: blur(7px) saturate(1.2);
+  backdrop-filter: blur(7px) saturate(1.2);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 85%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 85%);
+}
+
+/* ---- Legible text over glass + photo ----
+   Darken the muted "subtitle" greys and add a soft light halo so text
+   stays readable across bright and dark regions of the background. */
+
+/* Text that sits directly on the photo (transparent playground) */
+:root[data-theme*="glass"] .chat__headline {
+  color: #0c1824;
+  text-shadow:
+    0 1px 12px rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(255, 255, 255, 0.75);
+}
+
+:root[data-theme*="glass"] .chat__tagline {
+  color: rgba(16, 28, 41, 0.85);
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.55);
+}
+
+/* Muted subtitles/labels inside components → darker + halo */
+:root[data-theme*="glass"] .rdesk-card__title,
+:root[data-theme*="glass"] .rdesk__news-title,
+:root[data-theme*="glass"] .wl-row__name {
+  color: #0f1b28;
+}
+
+:root[data-theme*="glass"] .rdesk-card__desc,
+:root[data-theme*="glass"] .rdesk__filter,
+:root[data-theme*="glass"] .wl-count,
+:root[data-theme*="glass"] .wl-filter {
+  color: rgba(16, 28, 41, 0.72);
+}
+
+/* Date sits directly on the photo — needs strong contrast + halo */
+:root[data-theme*="glass"] .rdesk__date {
+  color: rgba(10, 22, 34, 0.92);
+  text-shadow:
+    0 1px 5px rgba(255, 255, 255, 0.6),
+    0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+:root[data-theme*="glass"] .wl-searchbox__input,
+:root[data-theme*="glass"] .wl-row__ticker {
+  color: rgba(16, 28, 41, 0.85);
+}
+
+:root[data-theme*="glass"] .wl-searchbox__input::placeholder,
+:root[data-theme*="glass"] .wl-searchbox__icon {
+  color: rgba(70, 96, 126, 0.7);
+}
+
+/* Soft light halo behind text inside the glass cards for readability */
+:root[data-theme*="glass"] .rdesk__heading,
+:root[data-theme*="glass"] .rdesk-card__title,
+:root[data-theme*="glass"] .rdesk__news-title,
+:root[data-theme*="glass"] .rdesk-card__desc,
+:root[data-theme*="glass"] .rdesk__date,
+:root[data-theme*="glass"] .rdesk__latest-head,
+:root[data-theme*="glass"] .rdesk__post-title,
+:root[data-theme*="glass"] .rdesk__post-date,
+:root[data-theme*="glass"] .wl-heading,
+:root[data-theme*="glass"] .wl-row__name,
+:root[data-theme*="glass"] .wl-count,
+:root[data-theme*="glass"] .chat__tab {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+/* Bright blue section titles + date (they sit on the photo, not on glass) */
+:root[data-theme*="glass"] .rdesk__heading,
+:root[data-theme*="glass"] .wl-heading {
+  color: #ecf4fe;
+  text-shadow:
+    0 1px 5px rgba(0, 0, 0, 0.45),
+    0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme*="glass"] .rdesk__date {
+  color: #f3f8ff;
+  text-shadow:
+    0 1px 5px rgba(0, 0, 0, 0.5),
+    0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* News card text → white over the frosted glass */
+:root[data-theme*="glass"] .rdesk__news-title {
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+:root[data-theme*="glass"] .rdesk__news-src-name {
+  color: rgba(255, 255, 255, 0.78);
+}

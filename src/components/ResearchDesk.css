@@ -1,0 +1,508 @@
+.rdesk {
+  --rd-green: var(--accent); /* theme-driven */
+  --rd-green-dark: var(--accent-dark);
+  --rd-card-bg: var(--accent-soft);
+  --rd-card-border: #eeeeee;
+  --rd-thumb: #ecf0e9;
+
+  display: flex;
+  gap: 40px;
+  width: 100%;
+  max-width: 985px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+  font-family: var(--font-ui);
+  align-items: flex-start;
+  zoom: 1.15; /* whole Research Desk +15% (scales layout, fonts, images) */
+}
+
+/* --- Column heads --- */
+.rdesk__col {
+  min-width: 0;
+}
+
+.rdesk__col--events {
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.rdesk__col--spotlight {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.rdesk__spot-card {
+  margin-bottom: 12.6px; /* gap between spotlight-section cards/components (12px +5%) */
+  /* subtle cursor-follow tilt (transform set inline from JS); the transition
+     smooths the follow and eases the card back to flat on mouse-leave */
+  transform-origin: center;
+  will-change: transform;
+  transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Both Spotlight cards share the same media height so the Watchlist card
+   (2nd) matches the Spotlight card (1st): +15px, then +20px more on the media */
+.rdesk__spot-card .rdesk__spot-media {
+  aspect-ratio: 356 / 267;
+}
+
+.rdesk__head--news {
+  margin-top: 0; /* watchlist -> news gap comes from the card margin-bottom (12.6px) */
+  margin-bottom: 12.6px; /* gap between the News heading and its cards (12px +5%) */
+}
+
+.rdesk__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.rdesk__heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: var(--rd-green);
+}
+
+.rdesk__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  color: color-mix(in srgb, var(--accent) 45%, #9a9a9a);
+  background: var(--accent-soft);
+}
+
+.rdesk__filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 11px;
+  height: 11px;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--rd-green);
+  color: #fff;
+  font-size: 7px;
+  font-weight: 600;
+}
+
+/* --- Date group --- */
+.rdesk__date {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.22px;
+  color: color-mix(in srgb, var(--accent) 45%, #9a9a9a);
+}
+
+.rdesk__list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px; /* +5px between event cards */
+  margin-bottom: 18px;
+}
+
+/* Invisible date-line spacer to align the Spotlight card with the events cards */
+.rdesk__date--spacer {
+  visibility: hidden;
+}
+
+/* --- Event card --- */
+.rdesk-card {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  height: 86px;
+  padding: 11px;
+  background: var(--rd-card-bg);
+  border: 0.8px solid var(--rd-card-border);
+  border-radius: 2px;
+  cursor: pointer;
+  /* --pull: reverse-indent amount, eased every frame from JS (rAF spring). It
+     lives on `translate` (independent of `transform`) so the hovered card's lift
+     and press below compose with it without either animation fighting. */
+  translate: calc(-1 * var(--pull, 0px)) 0;
+  will-change: translate, transform;
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.22s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* Button-mode: hover lift + press (transform only; the pull is on `translate`) */
+.rdesk-card:hover {
+  background: rgba(167, 180, 165, 0.13);
+  border-color: #dde3d7;
+  box-shadow: 0 9px 22px -9px rgba(0, 0, 0, 0.28);
+  transform: translateY(-2px);
+}
+
+.rdesk-card:active {
+  transform: translateY(0) scale(0.985);
+  box-shadow: 0 2px 6px -4px rgba(0, 0, 0, 0.22);
+  transition-duration: 0.09s;
+}
+
+.rdesk-card__thumb {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 1px;
+  object-fit: cover;
+}
+
+.rdesk-card__thumb--empty {
+  background: linear-gradient(135deg, #e7ebe3, #d7ddd2);
+}
+
+.rdesk-card__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rdesk-card__title {
+  margin: 0;
+  font-size: 10.5px; /* was 9px */
+  font-weight: 500;
+  letter-spacing: -0.36px;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rdesk-card__desc {
+  margin: 0;
+  font-size: 10px; /* was 7px */
+  font-weight: 500;
+  line-height: 13.5px;
+  letter-spacing: -0.28px;
+  color: #a7a7a7;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* max 2 lines, trailing ellipsis on overflow */
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* --- Spotlight card --- */
+.rdesk__spot-card {
+  display: flex;
+  gap: 16px;
+  padding: 10px;
+  background: var(--rd-card-bg);
+  border: 0.8px solid var(--rd-card-border);
+  border-radius: 2px;
+}
+
+/* First (Spotlight) card: a touch more padding (+3%) */
+.rdesk__spot-card:not(.rdesk__spot-card--watch) {
+  padding: 10.3px;
+}
+
+.rdesk__spot-media {
+  position: relative;
+  margin: 0;
+  flex: 1 1 356px;
+  min-width: 0;
+  max-width: 380px;
+  aspect-ratio: 356 / 232; /* exact Figma image holder — landscape, not square */
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rdesk__spot-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rdesk__spot-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px;
+  background: rgba(253, 253, 253, 0.18);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.rdesk__spot-title {
+  margin: 0 0 5px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 14px;
+  letter-spacing: -0.24px;
+  color: #ecf6e0;
+}
+
+.rdesk__spot-subtitle {
+  margin: 0 0 5px;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 11px;
+  letter-spacing: -0.16px;
+  color: #ecf6e0;
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rdesk__spot-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 6px;
+  font-weight: 500;
+  letter-spacing: -0.12px;
+  color: #ecf6e0;
+}
+
+.rdesk__dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* --- Latest Post list --- */
+.rdesk__latest {
+  width: 208px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rdesk__latest-head {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.48px;
+  color: var(--rd-green);
+}
+
+/* Fill the card height (= spotlight image height) and spread the posts so the
+   last one bottom-aligns with the image on the left. */
+.rdesk__latest-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.rdesk__post {
+  display: flex;
+  gap: 8px;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rdesk__post:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.rdesk__post-thumb {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--rd-thumb);
+  object-fit: cover;
+}
+
+.rdesk__post-body {
+  min-width: 0;
+}
+
+.rdesk__post-title {
+  margin: 0 0 3px;
+  font-size: 11px; /* bumped up a bit */
+  font-weight: 600;
+  line-height: 13px;
+  letter-spacing: -0.32px;
+  color: var(--rd-green-dark);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rdesk__post-date {
+  margin: 0;
+  font-size: 7.5px; /* bumped up a bit */
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--rd-green-dark);
+}
+
+/* White Latest Post text only in the glass themes (glass + liquid-glass) */
+:root[data-theme*="glass"] .rdesk__post-title,
+:root[data-theme*="glass"] .rdesk__post-date {
+  color: #ffffff;
+}
+
+/* --- Watchlist: light info overlay + skeleton rows --- */
+.rdesk__spot-info--light {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.rdesk__spot-info--light .rdesk__spot-title {
+  font-size: 9px;
+  line-height: 12px;
+  color: var(--accent-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rdesk__spot-info--light .rdesk__spot-meta {
+  color: color-mix(in srgb, var(--accent-dark) 70%, #888888);
+}
+
+.rdesk__wrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rdesk__wrow-thumb {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: #ececec;
+}
+
+.rdesk__wrow-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rdesk__wrow-lines span {
+  height: 7px;
+  border-radius: 3px;
+  background: #ececec;
+}
+
+.rdesk__wrow-lines span:last-child {
+  width: 58%;
+}
+
+/* --- News: header + cards (image on top, headline, source-site logo) --- */
+.rdesk__news {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+}
+
+.rdesk__news-card {
+  aspect-ratio: 140 / 190; /* 170 + ~12% taller */
+  border: 0.8px solid var(--rd-card-border);
+  border-radius: 4px;
+  background: var(--rd-card-bg);
+  box-sizing: border-box;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  /* cursor-follow tilt (transform set inline by TiltCard); the transition eases
+     the follow and eases the card back to flat on mouse-leave */
+  transform-origin: center;
+  will-change: transform;
+  transition: transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.rdesk__news-thumb {
+  width: 100%;
+  height: 70px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 2px;
+  background: var(--rd-thumb);
+}
+
+.rdesk__news-title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 9.5px;
+  line-height: 11.5px;
+  letter-spacing: -0.16px;
+  color: #16212e;
+  /* clamp so the headline never pushes the source off the card */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rdesk__news-source {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rdesk__news-logo {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: contain;
+}
+
+.rdesk__news-src-name {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 7px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: #7b8570;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Responsive: stack columns --- */
+@media (max-width: 900px) {
+  .rdesk {
+    flex-direction: column;
+    gap: 28px;
+  }
+  .rdesk__col--events {
+    width: 100%;
+  }
+  .rdesk__spot-card {
+    flex-direction: column;
+  }
+  .rdesk__latest {
+    width: 100%;
+  }
+  .rdesk__news {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

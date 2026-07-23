@@ -1,0 +1,188 @@
+.lgctl {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  width: 272px;
+  font-family: var(--font-ui);
+  color: #eef2fb;
+  background: rgba(16, 20, 34, 0.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 18px 44px -14px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+}
+
+.lgctl__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 11px 13px;
+  color: #eef2fb;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  background: linear-gradient(
+    100deg,
+    rgba(160, 224, 255, 0.16),
+    rgba(201, 179, 255, 0.14) 55%,
+    rgba(183, 255, 224, 0.12)
+  );
+}
+
+.lgctl__body {
+  max-height: 66vh;
+  overflow-y: auto;
+  padding: 4px 13px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* --- Blob merge preview --- */
+.lgctl__preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 6px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lgctl__preview-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.lgctl__blob {
+  position: relative;
+  flex: 1;
+  height: 30px;
+  /* gooey filter → the dots merge like liquid metaballs (strength from Blob) */
+  filter: url(#lg-blob);
+}
+
+.lgctl__blob-dot {
+  position: absolute;
+  top: 50%;
+  /* size / corner-radius come from the Shape Settings params, clamped so the
+     dots stay within the preview strip and always overlap into a blob */
+  width: clamp(20px, var(--lg-shape-w, 24px), 26px);
+  height: clamp(20px, var(--lg-shape-h, 24px), 26px);
+  border-radius: var(--lg-shape-radius, 50%);
+  transform: translateY(-50%);
+  background: radial-gradient(circle at 35% 30%, #d8ecff, #9cc4ff 60%, #7ba7ff);
+  animation: lgctl-morph var(--lg-morph, 2s) ease-in-out infinite alternate;
+}
+
+.lgctl__blob-dot--a {
+  left: 4px;
+}
+.lgctl__blob-dot--b {
+  left: 24px;
+  animation-delay: -0.5s;
+}
+.lgctl__blob-dot--c {
+  left: 44px;
+  animation-delay: -1s;
+}
+
+@keyframes lgctl-morph {
+  from {
+    transform: translateY(-50%) scale(0.92);
+  }
+  to {
+    transform: translateY(-50%) scale(1.06);
+  }
+}
+
+.lgctl__section {
+  margin: 8px 0 1px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: rgba(160, 200, 255, 0.85);
+}
+
+.lgctl__row {
+  display: grid;
+  grid-template-columns: 1fr 88px 36px;
+  align-items: center;
+  gap: 8px;
+}
+
+.lgctl__row--check,
+.lgctl__row--color {
+  grid-template-columns: 1fr auto;
+}
+
+.lgctl__check {
+  width: 15px;
+  height: 15px;
+  accent-color: #8fb8ff;
+  cursor: pointer;
+  justify-self: end;
+}
+
+.lgctl__color {
+  width: 30px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.lgctl__value--hex {
+  width: auto;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.lgctl__label {
+  font-size: 10px;
+  letter-spacing: -0.1px;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lgctl__slider {
+  width: 100%;
+  height: 3px;
+  accent-color: #8fb8ff;
+  cursor: pointer;
+}
+
+.lgctl__value {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.lgctl__reset {
+  margin-top: 4px;
+  padding: 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #eef2fb;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.lgctl__reset:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
