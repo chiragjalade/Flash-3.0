@@ -226,6 +226,31 @@
   object-fit: cover;
 }
 
+/* Progressive blur: a blurred COPY of the image on top, masked so it's full at
+   the bottom and fades to sharp toward the top. Blurring the image itself (not a
+   backdrop-filter) survives the hover 3D-tilt without the hard-edge seam. */
+.rdesk__spot-blur {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* each band: masked to its slice (mask set inline), holds one blur radius */
+.rdesk__spot-blur-band {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+.rdesk__spot-blur-band img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.09); /* push each blur's soft edges outside the clipped media */
+}
+
 .rdesk__spot-info {
   position: absolute;
   left: 0;
@@ -233,8 +258,6 @@
   bottom: 0;
   padding: 12px;
   background: rgba(253, 253, 253, 0.18);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
 }
 
 .rdesk__spot-title {

@@ -85,6 +85,29 @@ const jun2: EventItem[] = [
   },
 ];
 
+// Progressive blur on the spotlight image: stacked copies with increasing blur
+// radius, each masked to an overlapping band, so the blur RAMPS from ~sharp at
+// the top to heavy at the bottom (a real gradient blur, not one uniform layer).
+const SPOT_BLUR_LAYERS: { blur: number; mask: string }[] = [
+  { blur: 18, mask: "linear-gradient(to top, #000 0%, #000 14%, transparent 30%)" },
+  {
+    blur: 11,
+    mask: "linear-gradient(to top, transparent 8%, #000 22%, #000 36%, transparent 50%)",
+  },
+  {
+    blur: 6,
+    mask: "linear-gradient(to top, transparent 28%, #000 42%, #000 56%, transparent 70%)",
+  },
+  {
+    blur: 3,
+    mask: "linear-gradient(to top, transparent 48%, #000 62%, #000 76%, transparent 88%)",
+  },
+  {
+    blur: 1.5,
+    mask: "linear-gradient(to top, transparent 66%, #000 82%, transparent 98%)",
+  },
+];
+
 // Shown while news is loading or if the fetch fails, so the layout never breaks.
 const fallbackArticle: NewsArticle = {
   id: "fallback",
@@ -351,6 +374,27 @@ export default function ResearchDesk() {
                 e.currentTarget.src = icons.spotlight;
               }}
             />
+            {/* Progressive blur: stacked copies at increasing blur radius, each
+                masked to a band, so the blur ramps sharp→heavy top→bottom. Mask on
+                the wrapper, blur on the img (they don't compose on one element). */}
+            <div className="rdesk__spot-blur" aria-hidden>
+              {SPOT_BLUR_LAYERS.map((l, li) => (
+                <div
+                  key={li}
+                  className="rdesk__spot-blur-band"
+                  style={{ WebkitMaskImage: l.mask, maskImage: l.mask }}
+                >
+                  <img
+                    src={spotlight.image || icons.spotlight}
+                    alt=""
+                    style={{ filter: `blur(${l.blur}px)` }}
+                    onError={(e) => {
+                      e.currentTarget.src = icons.spotlight;
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
             <figcaption className="rdesk__spot-info">
               <p className="rdesk__spot-title">{spotlight.headline}</p>
               {spotlight.subtitle && (
