@@ -1,23 +1,42 @@
-import { useMemo, useState } from "react";
-import { icons } from "../icons";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { searchCompanies, type Company } from "../lib/companySearch";
 import "./WatchlistPage.css";
 
-interface Company {
-  name: string;
-  ticker: string;
-  logo: string;
-}
+// Real brand logo with a graceful fallback: renders the company's verified logo
+// URL when one exists, and drops to the coloured monogram SVG tile otherwise (or
+// if the image fails to load). Mounted fresh per company (button key includes the
+// ticker), so the failed state always starts clean.
+function CompanyLogo({ company }: { company: Company }) {
+  const [failed, setFailed] = useState(false);
 
-const companies: Company[] = [
-  { name: "Adani Enterprises Ltd.", ticker: "ADANIENT", logo: icons.wlAdaniEnt },
-  { name: "Adani Power Ltd.", ticker: "ADANIPOWER", logo: icons.wlAdaniPower },
-  { name: "Aditya Birla Capital Ltd.", ticker: "ABCAPITAL", logo: icons.wlAbCapital },
-  { name: "Ambuja Cements Ltd.", ticker: "AMBUJACEM", logo: icons.wlAmbujaCem },
-  { name: "Asian Paints Ltd.", ticker: "ASIANPAINT", logo: icons.wlAsianPaint },
-  { name: "Ashok Leyland Ltd.", ticker: "ASHOKLEY", logo: icons.wlAshokLey },
-  { name: "Axis Bank Ltd.", ticker: "AXISBANK", logo: icons.wlAxisBank },
-  { name: "Axis Bank Ltd.", ticker: "AXISBANK", logo: icons.wlAxisBank },
-];
+  if (!company.logo || failed) {
+    return (
+      <svg className="wl-row__logo" viewBox="0 0 32 32" aria-hidden>
+        <rect width="32" height="32" rx="6" fill={company.color} />
+        <text
+          x="16"
+          y="21"
+          textAnchor="middle"
+          fill="#ffffff"
+          fontFamily="Inter, Arial, sans-serif"
+          fontSize="13"
+          fontWeight="600"
+        >
+          {company.mark}
+        </text>
+      </svg>
+    );
+  }
+  return (
+    <img
+      className="wl-row__logo"
+      src={company.logo}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 function FilterChip({ count }: { count: number }) {
   return (
@@ -33,15 +52,41 @@ function FilterChip({ count }: { count: number }) {
 
 export default function WatchlistPage() {
   const [query, setQuery] = useState("");
-
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return companies;
-    return companies.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) || c.ticker.toLowerCase().includes(q),
-    );
+  // Debounce the raw input so the (fuzzy) search only runs after the user pauses.
+  const [debounced, setDebounced] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 140);
+    return () => clearTimeout(t);
   }, [query]);
+
+  // Subtle cursor-reactive tilt + translate on the Followed Companies card.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const tiltRaf = useRef(0);
+  const onCardMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const nx = ((e.clientX - r.left) / r.width) * 2 - 1; // -1..1
+    const ny = ((e.clientY - r.top) / r.height) * 2 - 1; // -1..1
+    if (!tiltRaf.current) {
+      tiltRaf.current = requestAnimationFrame(() => {
+        tiltRaf.current = 0;
+        el.style.transform =
+          `perspective(700px) rotateX(${(-ny * 2.6).toFixed(2)}deg) ` +
+          `rotateY(${(nx * 2.6).toFixed(2)}deg) ` +
+          `translate3d(${(nx * 3).toFixed(2)}px, ${(ny * 3 - 2).toFixed(2)}px, 0)`;
+      });
+    }
+  };
+  const resetCardTilt = () => {
+    if (tiltRaf.current) {
+      cancelAnimationFrame(tiltRaf.current);
+      tiltRaf.current = 0;
+    }
+    if (cardRef.current) cardRef.current.style.transform = "";
+  };
+
+  const results = useMemo(() => searchCompanies(debounced), [debounced]);
 
   return (
     <section className="wpage">
@@ -94,7 +139,7 @@ export default function WatchlistPage() {
           <div className="wl-results">
             {results.map((c, i) => (
               <button type="button" className="wl-row" key={`${c.ticker}-${i}`}>
-                <img className="wl-row__logo" src={c.logo} alt="" />
+                <CompanyLogo company={c} />
                 <span className="wl-row__name">{c.name}</span>
                 <span className="wl-row__ticker">{c.ticker}</span>
               </button>
@@ -113,7 +158,12 @@ export default function WatchlistPage() {
           </header>
           <p className="wl-count">10 Companies</p>
 
-          <div className="wl-followed__card">
+          <div
+            className="wl-followed__card"
+            ref={cardRef}
+            onMouseMove={onCardMove}
+            onMouseLeave={resetCardTilt}
+          >
             {[0, 1, 2, 3, 4].map((i) => (
               <div className="wl-skel" key={i}>
                 <span className="wl-skel__thumb" />
