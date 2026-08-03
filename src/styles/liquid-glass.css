@@ -110,8 +110,8 @@
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgba(6, 8, 12, 0.7) 0%,
-    rgba(9, 12, 17, 0.32) 48%,
+    rgba(6, 8, 12, 0.82) 0%,
+    rgba(9, 12, 17, 0.4) 48%,
     rgba(12, 16, 22, 0.04) 100%
   );
   pointer-events: none;
@@ -130,8 +130,8 @@
   display: block;
   background: linear-gradient(
     180deg,
-    rgba(6, 8, 12, 0.72),
-    rgba(12, 16, 22, 0.14)
+    rgba(6, 8, 12, 0.84),
+    rgba(12, 16, 22, 0.16)
   );
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -148,8 +148,8 @@
 :root[data-theme="liquid-glass"] .msg__bubble::before {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.66) 0%,
-    rgba(255, 255, 255, 0.28) 48%,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.36) 48%,
     rgba(255, 255, 255, 0.04) 100%
   );
   mix-blend-mode: normal;

@@ -728,7 +728,12 @@
   overflow: visible; /* let the buttons slide out of the card */
 }
 .msg__content--actions {
-  padding-bottom: 48px; /* room for the buttons sitting inside the card */
+  padding-bottom: 48px; /* room for the buttons while they sit inside the card */
+  transition: padding-bottom 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* once the buttons have separated out, reclaim that reserved space smoothly */
+.msg__group--btnsplit .msg__content--actions {
+  padding-bottom: 14px;
 }
 .skel--chart .msg__actions,
 .msg__content .msg__actions {
@@ -747,6 +752,11 @@
 }
 .skel--chart:first-child .chart {
   inset: 24px 20px 62px; /* extra bottom room while the buttons sit inside */
+  transition: bottom 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* buttons gone → chart grows back down into the reclaimed space */
+.msg__group--btnsplit .skel--chart:first-child .chart {
+  bottom: 32px;
 }
 
 /* Circular buttons: transparent in the foreground (icon only); the gel paints the

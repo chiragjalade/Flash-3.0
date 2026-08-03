@@ -403,7 +403,7 @@ export default function GlassLayer({ config }: { config: LConfig }) {
       gl.uniform1f(uFres, n("fresnelIntensity") / 100);
       gl.uniform1f(uGlare, n("glareIntensity") / 100);
       gl.uniform1f(uAngle, (n("glareAngle") * Math.PI) / 180);
-      gl.uniform1f(uBlur, Math.max(n("blurRadius"), 7) * dpr); // light frost floor
+      gl.uniform1f(uBlur, Math.max(n("blurRadius"), 10) * dpr); // glass component's own frost (a bit more)
       // One-time auto glare sweep, else the normal cursor easing.
       let sweeping = false;
       if (sweepActive) {
