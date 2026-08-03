@@ -52,7 +52,7 @@ function makeTurn(index: number, prompt: string): Turn {
     prompt: prompt || MOCK_PROMPTS[index % MOCK_PROMPTS.length]!,
     thought: thoughts[index % thoughts.length]!,
     paragraphs: index % 2 === 0 ? MOCK_PARAS_A : MOCK_PARAS_B,
-    skeleton: charts ? "charts" : "cards",
+    skeleton: charts ? "charts" : undefined,
     charts,
   };
 }
@@ -141,6 +141,11 @@ function Skeleton({
             {!gel && charts && (
               <GenerativeChart kind={charts[i]!} seed={seeds[i]!} />
             )}
+            {/* Copy/share live INSIDE the left card's bottom. Rendered in BOTH
+                layers: as dark goo circles in the gel (fused into the card's goo
+                blob, so they neck OUT of the card edge as they slide down) and as
+                icons + fading glass circle in the fg. */}
+            {i === 0 && <MsgActions />}
           </div>
         ))}
       </div>
@@ -176,12 +181,18 @@ function AnswerBody({
   return (
     <>
       <ThoughtLine time={turn.thought} />
-      <div className="msg__content">
+      <div
+        className={`msg__content${turn.skeleton !== "charts" ? " msg__content--actions" : ""}`}
+      >
         <div className="msg__body">
           {turn.paragraphs.map((p, i) => (
             <p key={i}>{p}</p>
           ))}
         </div>
+        {/* Non-chart turns keep the copy/share pair INSIDE the main/text card at
+            its bottom, so it emerges out of that card the same way; chart turns
+            put it inside the chart card instead (see Skeleton). */}
+        {turn.skeleton !== "charts" && <MsgActions />}
       </div>
       {turn.skeleton && (
         <Skeleton
@@ -192,7 +203,6 @@ function AnswerBody({
           onToggle={onToggle}
         />
       )}
-      <MsgActions />
     </>
   );
 }
@@ -262,7 +272,9 @@ function AnswerBlock({ turn }: { turn: Turn }) {
     if (!fg) return;
     const content = fg.querySelector<HTMLElement>(".msg__content");
     const skel = fg.querySelector<HTMLElement>(".skel-cards, .skel-charts");
-    const actions = fg.querySelector<HTMLElement>(".msg__actions");
+    // only the STANDALONE action row (direct child) tucks/merges; chart turns
+    // put the buttons inside the card, so this is null for them.
+    const actions = fg.querySelector<HTMLElement>(":scope > .msg__actions");
     if (!content) return;
     // Merged layout: each piece tucks OVERLAP px under the bottom of the piece
     // above it (a clean stacked grid the goo necks together), rather than all
@@ -287,10 +299,11 @@ function AnswerBlock({ turn }: { turn: Turn }) {
     const t1 = window.setTimeout(() => setSplit(true), 1260); // skeletons drop out
     // then the two side-by-side chart placeholders shrink/neck apart in width
     const t2 = window.setTimeout(() => setXSplit(true), 2700);
-    // buttons come out LAST — after the placeholder boxes have separated
+    // buttons come out LAST — for chart turns they slide out of the card only
+    // after it has fully settled in.
     const t3 = window.setTimeout(
       () => setBtnSplit(true),
-      turn.skeleton ? 3800 : 1800,
+      turn.skeleton === "charts" ? 4700 : turn.skeleton ? 3800 : 1800,
     );
     return () => {
       clearTimeout(t1);
@@ -501,7 +514,7 @@ export default function ChatPanel() {
             style={{ position: "absolute" }}
           >
             <defs>
-              <filter id="goo">
+              <filter id="goo" x="-12%" y="-12%" width="124%" height="150%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
                 <feColorMatrix
                   in="blur"
@@ -511,10 +524,7 @@ export default function ChatPanel() {
                 />
                 <feComposite in="SourceGraphic" in2="goo" operator="atop" />
               </filter>
-              {/* Stronger goo for the large chart cards: a proportionally thicker
-                  neck so the two cards visibly stretch + pinch apart (the 4px goo
-                  above is invisible at ~430px card size). */}
-              <filter id="goo-lg">
+              <filter id="goo-lg" x="-15%" y="-15%" width="130%" height="210%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur" />
                 <feColorMatrix
                   in="blur"

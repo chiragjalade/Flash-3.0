@@ -7,6 +7,15 @@
   position: absolute;
   /* top | right | bottom | left — generous breathing room top & bottom */
   inset: 26px 18px 32px;
+  /* Smooth left-to-right reveal: the plot wipes in so candles / bars / the line
+     appear one by one as the edge passes. Delay is per-theme (--reveal-delay). */
+  clip-path: inset(0 100% 0 0);
+  animation: chart-reveal 1.9s cubic-bezier(0.33, 0, 0.15, 1) var(--reveal-delay, 1.3s) both;
+}
+@keyframes chart-reveal {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 /* Recharts injects its own wrapper — make sure nothing clips or offsets it. */

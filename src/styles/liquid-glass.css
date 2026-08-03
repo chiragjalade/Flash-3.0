@@ -88,6 +88,77 @@
   background: transparent !important;
 }
 
+/* --- Answer cards + buttons as WebGL glass (experimental) ---------------------
+   In this theme the chart cards and their action buttons are rendered by the
+   WebGL GlassLayer (real refraction + smooth-min metaball merge — the button
+   necks out of the card). So drop the SVG "goo" gel and the button's CSS glass
+   circle; the WebGL layer strips each element's own surface via .lg-webgl-active
+   and draws the glass, with the chart / icon crisp on top. */
+:root[data-theme="liquid-glass"] .msg__gel {
+  display: none;
+}
+
+/* Black-to-transparent gradient tint LAYERED ON the WebGL glass (darker at the
+   top, clear at the bottom so the refraction shows through). Added via ::before
+   because the WebGL layer strips each element's own background. Sits behind the
+   chart / text / icons. */
+:root[data-theme="liquid-glass"] .msg__content::before,
+:root[data-theme="liquid-glass"] .skel--chart::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 8, 12, 0.7) 0%,
+    rgba(9, 12, 17, 0.32) 48%,
+    rgba(12, 16, 22, 0.04) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+/* keep the chart above the tint WITHOUT disturbing its absolute fill */
+:root[data-theme="liquid-glass"] .skel--chart > .chart {
+  z-index: 1;
+}
+:root[data-theme="liquid-glass"] .msg__content > .msg__body {
+  position: relative;
+  z-index: 1;
+}
+/* the button's ::before becomes the same tint over its glass circle */
+:root[data-theme="liquid-glass"] .msg__fg .msg__act::before {
+  display: block;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 8, 12, 0.72),
+    rgba(12, 16, 22, 0.14)
+  );
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+/* User-sent bubble: WebGL glass with a WHITE-to-transparent tint (mirror of the
+   answer's black-to-transparent). Its ::before (was the sheen) carries the tint;
+   text goes dark for legibility on the light glass. */
+:root[data-theme="liquid-glass"] .msg__bubble::before {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.66) 0%,
+    rgba(255, 255, 255, 0.28) 48%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  mix-blend-mode: normal;
+}
+:root[data-theme="liquid-glass"] .msg__bubble {
+  color: #12283e;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+
 /* "Latest Post" / "Watchlist" section headings → white over the glass */
 :root[data-theme="liquid-glass"] .rdesk__latest-head {
   color: #fff;

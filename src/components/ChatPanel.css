@@ -471,12 +471,12 @@
   opacity: 0.7;
   pointer-events: none;
   filter: url(#goo) drop-shadow(0 4px 11px rgba(0, 0, 0, 0.28));
-  animation: gel-settle 7.6s cubic-bezier(0.37, 0, 0.25, 1) forwards;
+  animation: gel-settle 9s cubic-bezier(0.37, 0, 0.25, 1) forwards;
 }
 @keyframes gel-settle {
   0%,
-  60% {
-    opacity: 0.7; /* bold while merging + separating */
+  72% {
+    opacity: 0.7; /* bold while merging, separating, AND the buttons neck out */
   }
   100% {
     opacity: 0.12; /* faded → cards become smooth transparent glass at rest */
@@ -717,9 +717,42 @@
   transform: translateY(var(--merge-y));
 }
 
+/* The copy/share pair starts INSIDE whatever card it belongs to (chart card for
+   chart turns, the main/text card otherwise), pinned to that card's bottom as
+   icons (its ::before glass circle hidden). It's a child of the card, so it
+   travels WITH the card. On --btnsplit it slides DOWN out of the card and the
+   gel necks it out (goo) while the glass circle grows in — it becomes a real
+   button only as it separates. Applies to EVERY card type. */
+.skel.skel--chart,
+.msg__content--actions {
+  overflow: visible; /* let the buttons slide out of the card */
+}
+.msg__content--actions {
+  padding-bottom: 48px; /* room for the buttons sitting inside the card */
+}
+.skel--chart .msg__actions,
+.msg__content .msg__actions {
+  position: absolute;
+  left: 20px;
+  bottom: 14px;
+  z-index: 2;
+  gap: 14px;
+  margin: 0;
+  transform: translateY(0);
+  transition: transform 1.3s cubic-bezier(0.32, 0, 0.18, 1);
+}
+.msg__group--btnsplit .skel--chart .msg__actions,
+.msg__group--btnsplit .msg__content .msg__actions {
+  transform: translateY(74px); /* slides well clear of the card bottom */
+}
+.skel--chart:first-child .chart {
+  inset: 24px 20px 62px; /* extra bottom room while the buttons sit inside */
+}
+
 /* Circular buttons: transparent in the foreground (icon only); the gel paints the
    white circle & the goo necks it apart from the rest. */
 .msg__act {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -732,15 +765,22 @@
     color 0.2s ease,
     transform 0.14s ease;
 }
-/* Action buttons → frosted glass in the fg; the gel paints dark circles behind
-   them so the goo necks them out of the box as they separate. */
+/* The gel paints dark circles behind the buttons; the goo necks each circle out
+   of the card as it separates (the liquid emergence). */
 .msg__gel .msg__act {
   background: #05070b;
 }
 .msg__gel .msg__act svg {
   display: none; /* no icon in the gel */
 }
-.msg__fg .msg__act {
+/* The button's frosted glass circle lives on ::before so it can GROW IN as the
+   button emerges: while merged the button reads as just an icon (::before hidden),
+   and its border/background engulfs the icon only once it separates out. */
+.msg__fg .msg__act::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   background: linear-gradient(
     180deg,
     rgba(6, 8, 12, 0.72) 0%,
@@ -752,9 +792,22 @@
   box-shadow:
     inset 0 1px 0.5px rgba(255, 255, 255, 0.35),
     0 6px 14px -8px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: scale(0.72);
+  transform-origin: center top;
+  transition:
+    opacity 1.4s cubic-bezier(0.33, 0, 0.2, 1),
+    transform 1.4s cubic-bezier(0.33, 0, 0.2, 1);
+}
+/* once the buttons separate out, the glass circle grows in around the icon */
+.msg__group--btnsplit .msg__fg .msg__act::before {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .msg__act svg {
+  position: relative;
+  z-index: 1; /* icon stays above its ::before glass circle */
   width: 14px;
   height: 14px;
 }
@@ -807,7 +860,11 @@
 .msg__group--split .skel-charts {
   animation: settle 3.3s both;
 }
-.msg__group--btnsplit .msg__actions {
+/* Only the STANDALONE action row (direct child of a layer) does the settle
+   tuck/merge. The in-card buttons (nested in .skel--chart) must NOT — their
+   `both` fill was pinning the buttons' transform and blocking the slide-out. */
+.msg__group--btnsplit .msg__gel > .msg__actions,
+.msg__group--btnsplit .msg__fg > .msg__actions {
   animation: settle 3.3s both;
 }
 

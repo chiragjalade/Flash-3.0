@@ -15,7 +15,11 @@ const MAX = 32;
 // surface selector list in liquid-glass.css.
 const SELECTOR =
   ".lg-glass, .prompt, .rdesk-card, .rdesk__spot-card, .rdesk__news-card, " +
-  ".wl-results, .wl-followed__card, .wl-searchbox, .clock-widget__card, .clock-widget__mini, .theme-pop";
+  ".wl-results, .wl-followed__card, .wl-searchbox, .clock-widget__card, .clock-widget__mini, .theme-pop, " +
+  // answer text card + chart cards + action buttons → real WebGL glass that fuses/necks
+  ".msg__content, .skel--chart, .msg__act, " +
+  // user-sent bubble → WebGL glass too (standalone, not mergeable)
+  ".msg__bubble";
 
 const VERT = `#version 300 es
 void main(){
@@ -317,7 +321,8 @@ export default function GlassLayer({ config }: { config: LConfig }) {
     // Only the movable element(s) merge — the draggable clock. Everything else is
     // static and keeps hard, separate edges. Add selectors here for any other
     // element that should grow a liquid neck as it approaches its neighbours.
-    const MERGE_SELECTOR = ".clock-widget__card, .clock-widget__mini";
+    const MERGE_SELECTOR =
+      ".clock-widget__card, .clock-widget__mini, .msg__content, .skel--chart, .msg__act";
     let raf = 0;
     let bgBlur = 0; // eased background-photo frost (px); ramps in the chat convo
     // Parallax: the photo is zoomed BG_ZOOM by default, and slowly drifts (a
@@ -392,7 +397,7 @@ export default function GlassLayer({ config }: { config: LConfig }) {
       const seatedIn = !!document.querySelector(
         ".clock-widget--in:not(.clock-widget--merging)",
       );
-      gl.uniform1f(uKClock, (seatedIn ? 0 : 0.05) * 560 * dpr);
+      gl.uniform1f(uKClock, (seatedIn ? 0 : 0.026) * 560 * dpr);
       gl.uniform1f(uRefract, n("refractionFactor"));
       gl.uniform1f(uDisp, n("dispersionGain") * 0.06);
       gl.uniform1f(uFres, n("fresnelIntensity") / 100);

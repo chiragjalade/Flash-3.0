@@ -150,7 +150,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
     const hi = Math.max(...candles.map((d) => d.high));
     const pad = (hi - lo) * 0.08;
     return (
-      <div className="chart">
+      <div className="chart" style={{ "--reveal-delay": `${begin}ms` } as React.CSSProperties}>
         <ResponsiveContainer width="100%" height="100%" debounce={220}>
           <ComposedChart data={candles} margin={{ top: 10, right: 8, bottom: 2, left: 2 }}>
             <CartesianGrid vertical={false} stroke={GRID} />
@@ -159,7 +159,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
             <Bar
               dataKey="range"
               shape={<CandleShape />}
-              isAnimationActive
+              isAnimationActive={false}
               animationBegin={begin}
               animationDuration={750}
               animationEasing="ease-out"
@@ -172,7 +172,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
 
   if (type === "line") {
     return (
-      <div className="chart">
+      <div className="chart" style={{ "--reveal-delay": `${begin}ms` } as React.CSSProperties}>
         <ResponsiveContainer width="100%" height="100%" debounce={220}>
           <AreaChart data={line} margin={{ top: 10, right: 8, bottom: 2, left: 2 }}>
             <defs>
@@ -191,7 +191,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
               strokeWidth={2}
               fill={`url(#${gradId})`}
               dot={false}
-              isAnimationActive
+              isAnimationActive={false}
               animationBegin={begin}
               animationDuration={950}
               animationEasing="ease-in-out"
@@ -203,7 +203,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
   }
 
   return (
-    <div className="chart">
+    <div className="chart" style={{ "--reveal-delay": `${begin}ms` } as React.CSSProperties}>
       <ResponsiveContainer width="100%" height="100%" debounce={220}>
         <BarChart data={bars} margin={{ top: 10, right: 8, bottom: 2, left: 2 }}>
           <CartesianGrid vertical={false} stroke={GRID} />
@@ -212,7 +212,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
           <Bar
             dataKey="value"
             radius={[4, 4, 0, 0]}
-            isAnimationActive
+            isAnimationActive={false}
             animationBegin={begin}
             animationDuration={800}
             animationEasing="ease-out"
