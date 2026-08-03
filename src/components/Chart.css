@@ -1,0 +1,20 @@
+/* A chart fills its placeholder box completely and adapts to any size. It sits
+   in the sharp foreground layer (.msg__fg); the white "gel" box behind it is
+   glass-theme only, so on other themes the chart just renders on the page. */
+/* Inset from the box edges so the plot has breathing room (whitespace) instead
+   of the candles/bars running into the corners. */
+.chart {
+  position: absolute;
+  /* top | right | bottom | left — generous breathing room top & bottom */
+  inset: 26px 18px 32px;
+}
+
+/* Recharts injects its own wrapper — make sure nothing clips or offsets it. */
+.chart .recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart .recharts-surface {
+  overflow: visible;
+}

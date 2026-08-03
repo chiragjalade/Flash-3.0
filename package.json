@@ -21,8 +21,12 @@
     "@fontsource/fraunces": "^5.2.9",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
+    "@json-render/core": "^0.19.0",
+    "@json-render/react": "^0.19.0",
     "@ybouane/liquidglass": "^1.0.3",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "recharts": "^3.10.1",
+    "zod": "^4.4.3"
   }
 }

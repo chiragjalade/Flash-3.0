@@ -1,16 +1,411 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { icons } from "../icons";
 import ResearchDesk from "./ResearchDesk";
+import { type ChartType } from "./Chart";
+import GenerativeChart from "./GenerativeChart";
 import "./ChatPanel.css";
+
+// --- Mock conversation content ------------------------------------------------
+// This is placeholder data so we can see how a streamed answer will look. Later
+// the turns (thought time, text, and the rich blocks that the skeletons stand in
+// for) will arrive from the API; the user's prompt will be sent there too.
+interface Turn {
+  id: number;
+  prompt: string; // the user's message for this turn
+  thought: string; // "Thought for 2.1s"
+  paragraphs: string[];
+  skeleton?: "cards" | "charts"; // rich content that streams in after the text
+  charts?: [ChartType, ChartType]; // chart type for each of the two chart boxes
+}
+
+const MOCK_PROMPTS = [
+  "Explain the dual momentum strategy and how it allocates between equities and bonds.",
+  "How many delivery partners has the program onboarded so far?",
+  "Summarise the drawdown profile across the last three market regimes.",
+  "What signals does the strategy use to rotate positions?",
+];
+
+const MOCK_PARAS_A = [
+  "Our program for delivery partners lets agents sign up for both pick-up and delivery services across India. It is a great opportunity to earn a sustainable income flexibly while giving our customers the best experience.",
+  "This program has enabled over 64,600+ partners across India to date. To start working with India's largest integrated logistics company, download our app and start earning today.",
+];
+const MOCK_PARAS_B = [
+  "Based on the momentum signals over the trailing 12 months, the strategy rotates between equities and treasuries, holding whichever asset shows the stronger relative and absolute momentum.",
+  "Below is a breakdown of the historical allocation and the drawdown profile across the last three market regimes.",
+];
+
+// Which rich block each turn streams in — rotated so the demo shows all three
+// chart types (candlestick, line, bar) plus the plain card blocks.
+const CHART_SETS: ([ChartType, ChartType] | undefined)[] = [
+  ["candlestick", "bar"],
+  ["line", "candlestick"],
+  undefined, // cards
+  ["bar", "line"],
+];
+
+let uid = 0;
+function makeTurn(index: number, prompt: string): Turn {
+  const thoughts = ["2.1s", "2.4s", "2.7s", "1.9s", "3.2s"];
+  const charts = CHART_SETS[index % CHART_SETS.length];
+  return {
+    id: uid++,
+    prompt: prompt || MOCK_PROMPTS[index % MOCK_PROMPTS.length]!,
+    thought: thoughts[index % thoughts.length]!,
+    paragraphs: index % 2 === 0 ? MOCK_PARAS_A : MOCK_PARAS_B,
+    skeleton: charts ? "charts" : "cards",
+    charts,
+  };
+}
+
+// The small sparkle + chevron shown on the "Thought for …" line.
+function ThoughtLine({ time }: { time: string }) {
+  return (
+    <div className="msg__thought">
+      <svg className="msg__spark" viewBox="0 0 10 10" aria-hidden>
+        <path
+          d="M5 0.6 6 4 9.4 5 6 6 5 9.4 4 6 0.6 5 4 4Z"
+          fill="currentColor"
+        />
+      </svg>
+      <span>Thought for {time}</span>
+      <svg className="msg__chev" viewBox="0 0 8 5" aria-hidden>
+        <path
+          d="M1 1 4 4 7 1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+// Copy / share action row under a response.
+function MsgActions() {
+  return (
+    <div className="msg__actions">
+      <button type="button" className="msg__act" aria-label="Copy">
+        <svg viewBox="0 0 14 14" aria-hidden>
+          <rect x="4.2" y="4.2" width="7.3" height="7.3" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1" />
+          <path d="M9.4 4.2V3.1a1.4 1.4 0 0 0-1.4-1.4H3.1a1.4 1.4 0 0 0-1.4 1.4v4.9a1.4 1.4 0 0 0 1.4 1.4h1.1" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </svg>
+      </button>
+      <button type="button" className="msg__act" aria-label="Share">
+        <svg viewBox="0 0 14 14" aria-hidden>
+          <path d="M2 8.5V11a1.3 1.3 0 0 0 1.3 1.3h7.4A1.3 1.3 0 0 0 12 11V8.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          <path d="M7 9V2M4.3 4.4 7 1.7l2.7 2.7" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+type Span = "half" | "full";
+
+// Skeleton placeholders standing in for rich content (charts / cards). The chart
+// boxes now host live charts — but only in the sharp foreground layer. In the
+// goo "gel" layer (`gel`) the boxes stay empty white shapes, so the chart isn't
+// smeared by the goo filter and the two layers stay dimensionally identical.
+//
+// The two chart boxes are EQUAL size by default. Each has a `span` (half/full);
+// clicking one toggles it wider, and the grid wraps so the other stacks below.
+// The parent (AnswerBlock) owns the spans + the FLIP animation so both the gel
+// and fg copies move in lockstep.
+function Skeleton({
+  kind,
+  charts,
+  gel,
+  spans,
+  onToggle,
+}: {
+  kind: NonNullable<Turn["skeleton"]>;
+  charts?: [ChartType, ChartType];
+  gel?: boolean;
+  spans: [Span, Span];
+  onToggle?: (i: number) => void;
+}) {
+  const seeds = [7, 19];
+  if (kind === "charts") {
+    return (
+      <div className="skel-charts">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="skel skel--chart"
+            data-span={spans[i]}
+            onClick={gel ? undefined : () => onToggle?.(i)}
+            title={gel ? undefined : "Click to resize"}
+          >
+            {!gel && charts && (
+              <GenerativeChart kind={charts[i]!} seed={seeds[i]!} />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="skel-cards">
+      <div className="skel skel--card" />
+      <div className="skel skel--card" />
+    </div>
+  );
+}
+
+// One AI response. It first appears as a single unified box (thought + text +
+// skeletons + actions all merged); after a short delay it flips to `--split`,
+// and CSS transitions separate the pieces out — the thought lifts to plain text,
+// the text keeps the box, the skeletons drop below, and the actions round into
+// standalone white buttons.
+// The answer's layout, rendered TWICE: once as the goo "gel" (white shapes, no
+// text) and once as the sharp foreground (text/icons, transparent boxes). Both
+// share the exact same flow + translate, so they stay perfectly aligned.
+function AnswerBody({
+  turn,
+  gel,
+  spans,
+  onToggle,
+}: {
+  turn: Turn;
+  gel?: boolean;
+  spans: [Span, Span];
+  onToggle?: (i: number) => void;
+}) {
+  return (
+    <>
+      <ThoughtLine time={turn.thought} />
+      <div className="msg__content">
+        <div className="msg__body">
+          {turn.paragraphs.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </div>
+      </div>
+      {turn.skeleton && (
+        <Skeleton
+          kind={turn.skeleton}
+          charts={turn.charts}
+          gel={gel}
+          spans={spans}
+          onToggle={onToggle}
+        />
+      )}
+      <MsgActions />
+    </>
+  );
+}
+
+function AnswerBlock({ turn }: { turn: Turn }) {
+  const groupRef = useRef<HTMLDivElement>(null);
+  const [split, setSplit] = useState(false); // stage 1: skeletons separate (Y)
+  const [xSplit, setXSplit] = useState(false); // stage 2: the chart pair splits (width)
+  const [btnSplit, setBtnSplit] = useState(false); // stage 3: buttons separate (Y)
+  // How far (px) to lift the skeletons / buttons up so they sit BEHIND (fused
+  // into) the content box while merged; on split they slide back down to Y=0. The
+  // goo filter necks them apart as they go. Only Y position changes, never size.
+  const [off, setOff] = useState({ skel: 0, act: 0 });
+
+  // Live chart sizing: both boxes equal by default; toggling one to "full" makes
+  // it span the row and pushes the other down to stack. A FLIP pass animates the
+  // reflow smoothly across BOTH the gel + fg copies so the white box and the
+  // chart move together.
+  const [spans, setSpans] = useState<[Span, Span]>(["half", "half"]);
+  const flipPrev = useRef<Map<Element, DOMRect>>(new Map());
+  const flipKey = useRef(0);
+
+  const toggleSpan = (i: number) => {
+    const boxes = groupRef.current?.querySelectorAll<HTMLElement>(".skel--chart");
+    const m = new Map<Element, DOMRect>();
+    boxes?.forEach((el) => m.set(el, el.getBoundingClientRect()));
+    flipPrev.current = m;
+    flipKey.current += 1;
+    setSpans((s) => {
+      const next: [Span, Span] = [s[0], s[1]];
+      next[i] = s[i] === "full" ? "half" : "full";
+      return next;
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (flipKey.current === 0) return; // skip the first (mount) layout
+    const boxes = groupRef.current?.querySelectorAll<HTMLElement>(".skel--chart");
+    boxes?.forEach((el) => {
+      const before = flipPrev.current.get(el);
+      if (!before) return;
+      const after = el.getBoundingClientRect();
+      const dx = before.left - after.left;
+      const dy = before.top - after.top;
+      const sx = after.width ? before.width / after.width : 1;
+      const sy = after.height ? before.height / after.height : 1;
+      if (
+        Math.abs(dx) < 1 &&
+        Math.abs(dy) < 1 &&
+        Math.abs(sx - 1) < 0.02 &&
+        Math.abs(sy - 1) < 0.02
+      )
+        return;
+      el.style.transition = "none";
+      el.style.transformOrigin = "left top";
+      el.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+      void el.offsetWidth; // force the "before" frame
+      requestAnimationFrame(() => {
+        el.style.transition = "transform 0.55s cubic-bezier(0.45, 0, 0.15, 1)";
+        el.style.transform = "";
+      });
+    });
+  }, [spans]);
+
+  useLayoutEffect(() => {
+    const fg = groupRef.current?.querySelector<HTMLElement>(".msg__fg");
+    if (!fg) return;
+    const content = fg.querySelector<HTMLElement>(".msg__content");
+    const skel = fg.querySelector<HTMLElement>(".skel-cards, .skel-charts");
+    const actions = fg.querySelector<HTMLElement>(".msg__actions");
+    if (!content) return;
+    // Merged layout: each piece tucks OVERLAP px under the bottom of the piece
+    // above it (a clean stacked grid the goo necks together), rather than all
+    // piling onto the content box. Translates are cumulative (up the stack).
+    const OVERLAP = 8;
+    let prevBottom = content.offsetTop + content.offsetHeight;
+    let prevY = 0;
+    let skelY = 0;
+    let actY = 0;
+    if (skel) {
+      skelY = prevY - OVERLAP - (skel.offsetTop - prevBottom);
+      prevY = skelY;
+      prevBottom = skel.offsetTop + skel.offsetHeight;
+    }
+    if (actions) {
+      actY = prevY - OVERLAP - (actions.offsetTop - prevBottom);
+    }
+    setOff({ skel: skelY, act: actY });
+  }, []);
+
+  useEffect(() => {
+    const t1 = window.setTimeout(() => setSplit(true), 1260); // skeletons drop out
+    // then the two side-by-side chart placeholders shrink/neck apart in width
+    const t2 = window.setTimeout(() => setXSplit(true), 2700);
+    // buttons come out LAST — after the placeholder boxes have separated
+    const t3 = window.setTimeout(
+      () => setBtnSplit(true),
+      turn.skeleton ? 3800 : 1800,
+    );
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [turn.skeleton]);
+
+  return (
+    <div
+      ref={groupRef}
+      className={`msg__group${split ? " msg__group--split" : ""}${xSplit ? " msg__group--xsplit" : ""}${btnSplit ? " msg__group--btnsplit" : ""}`}
+      style={
+        {
+          "--skel-y": `${off.skel}px`,
+          "--act-y": `${off.act}px`,
+        } as React.CSSProperties
+      }
+    >
+      <div className="msg__gel" aria-hidden>
+        <AnswerBody turn={turn} gel spans={spans} />
+      </div>
+      <div className="msg__fg">
+        <AnswerBody turn={turn} spans={spans} onToggle={toggleSpan} />
+      </div>
+    </div>
+  );
+}
+
+// User message shown as a dark liquid-glass bubble. A specular sheen + a
+// cursor-following glare (set from pointer position) give it the "liquid" feel.
+function UserBubble({ text }: { text: string }) {
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${((e.clientX - r.left) / r.width) * 100}%`);
+    el.style.setProperty("--my", `${((e.clientY - r.top) / r.height) * 100}%`);
+    el.style.setProperty("--glow", "1");
+  };
+  const onLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.style.setProperty("--glow", "0");
+  };
+  return (
+    <div className="msg__bubble" onMouseMove={onMove} onMouseLeave={onLeave}>
+      <span className="msg__bubble-txt">{text}</span>
+    </div>
+  );
+}
+
+// The prompt input box — reused centered in the hero and docked at the bottom
+// of a conversation.
+function PromptBox({
+  onSend,
+  docked,
+}: {
+  onSend: (text: string) => void;
+  docked?: boolean;
+}) {
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoGrow = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  const submit = () => {
+    const el = inputRef.current;
+    const text = el?.value.trim() ?? "";
+    onSend(text);
+    if (el) {
+      el.value = "";
+      el.style.height = "auto";
+    }
+  };
+
+  return (
+    <form
+      className={`prompt${docked ? " prompt--dock" : ""}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <textarea
+        ref={inputRef}
+        className="prompt__input"
+        rows={1}
+        placeholder="Add prompt instructions"
+        onInput={autoGrow}
+      />
+      <div className="prompt__row">
+        <button type="button" className="prompt__attach" aria-label="Attach">
+          +
+        </button>
+        <button type="submit" className="prompt__send" aria-label="Send">
+          <img src={icons.sendArrow} alt="" />
+        </button>
+      </div>
+    </form>
+  );
+}
 
 export default function ChatPanel() {
   const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
   const [deskUp, setDeskUp] = useState(false);
   const [bounce, setBounce] = useState(false); // transient landing-bounce class
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [turns, setTurns] = useState<Turn[]>([]); // conversation (empty = hero)
   const deskScrollRef = useRef<HTMLDivElement>(null);
+  const convoRef = useRef<HTMLDivElement>(null);
   const lockUntil = useRef(0); // throttle toggles during the transition
   const firstRun = useRef(true);
+
+  const inConversation = turns.length > 0;
 
   // Play the settle/stretch bounce whenever the desk rises or lowers.
   useEffect(() => {
@@ -23,16 +418,37 @@ export default function ChatPanel() {
     return () => clearTimeout(t);
   }, [deskUp]);
 
-  // Grow the prompt field vertically as the user types (wrap, no h-scroll).
-  const autoGrow = () => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+  // Keep the conversation pinned to the latest turn.
+  useEffect(() => {
+    const el = convoRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [turns]);
+
+  // Signal the liquid-glass WebGL layer to frost the background photo while the
+  // conversation is open (it reads this class each frame).
+  useEffect(() => {
+    document.documentElement.classList.toggle("chat-bg-blur", inConversation);
+    return () => document.documentElement.classList.remove("chat-bg-blur");
+  }, [inConversation]);
+
+  // Submitting the prompt loads the conversation view. First submit seeds a
+  // short demo thread so the layout is immediately visible; later sends append
+  // a single turn (as a stream would).
+  const handleSend = (text: string) => {
+    setTurns((prev) => {
+      // First submit seeds a short demo thread; the typed text (if any) drives
+      // the first turn, the rest use mock prompts.
+      if (prev.length === 0)
+        return [0, 1, 2].map((i) => makeTurn(i, i === 0 ? text : ""));
+      return [...prev, makeTurn(prev.length, text)];
+    });
   };
 
-  // Scrolling is a second way to bring the desk up / back down.
+  const newChat = () => setTurns([]);
+
+  // Scrolling is a second way to bring the desk up / back down (hero only).
   const onWheel = (e: React.WheelEvent) => {
+    if (inConversation) return;
     const now = Date.now();
     if (now < lockUntil.current) return;
 
@@ -44,8 +460,6 @@ export default function ChatPanel() {
       return;
     }
 
-    // Desk is up: let it scroll internally; collapse only when scrolling
-    // up while already at the top.
     const el = deskScrollRef.current;
     if (e.deltaY < -12 && (!el || el.scrollTop <= 0)) {
       setDeskUp(false);
@@ -59,7 +473,10 @@ export default function ChatPanel() {
         <button
           type="button"
           className={`chat__tab${activeTab === "chat" ? " chat__tab--active" : ""}`}
-          onClick={() => setActiveTab("chat")}
+          onClick={() => {
+            setActiveTab("chat");
+            if (inConversation) newChat(); // clicking Chat starts a fresh thread
+          }}
         >
           Chat
         </button>
@@ -72,69 +489,115 @@ export default function ChatPanel() {
         </button>
       </div>
 
-      <div
-        className={`chat__stage${deskUp ? " chat__stage--up" : ""}${bounce ? " chat__stage--bounce" : ""}`}
-        onWheel={onWheel}
-      >
-        {/* Hero: headline + prompt + tagline (slides up & out when desk is raised) */}
-        <div className="chat__hero">
-          <h1 className="chat__headline">
-            Research deeper. Understand faster.
-            <br />
-            Start with a question.
-          </h1>
-
-          <form className="prompt" onSubmit={(e) => e.preventDefault()}>
-            <textarea
-              ref={inputRef}
-              className="prompt__input"
-              rows={1}
-              placeholder="Add prompt instructions"
-              onInput={autoGrow}
-            />
-            <div className="prompt__row">
-              <button type="button" className="prompt__attach" aria-label="Attach">
-                +
-              </button>
-              <button type="submit" className="prompt__send" aria-label="Send">
-                <img src={icons.sendArrow} alt="" />
-              </button>
-            </div>
-          </form>
-
-          <p className="chat__tagline">The AI that gets it right. Every single time.</p>
-        </div>
-
-        {/* Pull-up button — cycles the Research Desk up / back down */}
-        <button
-          type="button"
-          className="chat__pull"
-          onClick={() => setDeskUp((v) => !v)}
-          aria-label={deskUp ? "Lower research desk" : "Raise research desk"}
-          aria-expanded={deskUp}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-            <path
-              d="M3.5 8.5 7 5 10.5 8.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+      {inConversation ? (
+        /* --- Conversation view: streamed content + docked prompt --- */
+        <div className="chat__convo-wrap">
+          {/* Goo / metaball filter — fuses the white answer shapes and necks them
+              apart as the skeletons/buttons separate out (like the clock merge). */}
+          <svg
+            width="0"
+            height="0"
+            aria-hidden
+            style={{ position: "absolute" }}
+          >
+            <defs>
+              <filter id="goo">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  type="matrix"
+                  values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 34 -18"
+                  result="goo"
+                />
+                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+              </filter>
+              {/* Stronger goo for the large chart cards: a proportionally thicker
+                  neck so the two cards visibly stretch + pinch apart (the 4px goo
+                  above is invisible at ~430px card size). */}
+              <filter id="goo-lg">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur" />
+                <feColorMatrix
+                  in="blur"
+                  type="matrix"
+                  values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 24 -11"
+                  result="goo"
+                />
+                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+              </filter>
+            </defs>
           </svg>
-        </button>
 
-        {/* Research Desk — peeks from the bottom, rises to fill on pull-up */}
-        <div className="chat__desk">
-          <div className="chat__desk-scroll" ref={deskScrollRef}>
-            <ResearchDesk />
+          {/* Frosted layer above the background image — blurs the page backdrop
+              behind the conversation (visible on the glass theme's photo). */}
+          <div className="chat__bg-blur" aria-hidden />
+
+          <div className="chat__convo" ref={convoRef}>
+            <div className="chat__thread">
+              {turns.map((t) => (
+                <article className="msg" key={t.id}>
+                  <div className="msg__user">
+                    <UserBubble text={t.prompt} />
+                  </div>
+                  <AnswerBlock turn={t} />
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="chat__dock">
+            {/* Disappearing blur box — fades the thread into the docked prompt */}
+            <div className="chat__dock-fade" aria-hidden />
+            <PromptBox onSend={handleSend} docked />
           </div>
         </div>
+      ) : (
+        /* --- Hero view: headline + centered prompt + research desk --- */
+        <div
+          className={`chat__stage${deskUp ? " chat__stage--up" : ""}${bounce ? " chat__stage--bounce" : ""}`}
+          onWheel={onWheel}
+        >
+          <div className="chat__hero">
+            <h1 className="chat__headline">
+              Research deeper. Understand faster.
+              <br />
+              Start with a question.
+            </h1>
 
-        {/* BlurLayer — bottom fade-to-white scrim with backdrop blur */}
-        <div className="chat__blur" aria-hidden />
-      </div>
+            <PromptBox onSend={handleSend} />
+
+            <p className="chat__tagline">
+              The AI that gets it right. Every single time.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="chat__pull"
+            onClick={() => setDeskUp((v) => !v)}
+            aria-label={deskUp ? "Lower research desk" : "Raise research desk"}
+            aria-expanded={deskUp}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <path
+                d="M3.5 8.5 7 5 10.5 8.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          <div className="chat__desk">
+            <div className="chat__desk-scroll" ref={deskScrollRef}>
+              <ResearchDesk />
+            </div>
+          </div>
+
+          <div className="chat__blur" aria-hidden />
+        </div>
+      )}
     </section>
   );
 }

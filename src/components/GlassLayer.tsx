@@ -39,6 +39,9 @@ uniform float u_kClock;  // merge reach between the two clock elements (card ↔
 uniform vec2 u_cursor;   // cursor position (GL px, y-up)
 uniform float u_curi;    // cursor-glare intensity 0..1 (eased in/out)
 uniform float u_spot;    // radius (px) of the soft glow pooled under the cursor
+uniform float u_bgBlur;  // blur radius (px) for the exposed background photo (0 = sharp)
+uniform float u_bgZoom;  // default magnification of the background photo (>1)
+uniform vec2 u_bgOffset; // parallax offset (uv), eased from the content scroll
 
 float smin(float a, float b, float k){
   if(k <= 0.0) return min(a,b);
@@ -95,6 +98,8 @@ vec2 bguv(vec2 f){
   );
   uv = uv * r + (1.0 - r) * 0.5;
   uv.y = 1.0 - uv.y;
+  // default zoom (magnify around centre) + parallax offset driven by scroll
+  uv = (uv - 0.5) / u_bgZoom + 0.5 + u_bgOffset;
   return uv;
 }
 // Smooth disk blur: 16-tap Vogel (golden-angle) spiral instead of a 3x3 box, so
@@ -116,7 +121,9 @@ vec3 sampleBg(vec2 uv, float blur){
 }
 void main(){
   vec2 f = gl_FragCoord.xy;
-  vec3 photo = texture(u_bg, bguv(f)).rgb;
+  // Background photo — optionally frosted (u_bgBlur) so a busy wallpaper calms
+  // down behind the chat conversation, while the glass surfaces stay sharp.
+  vec3 photo = sampleBg(bguv(f), u_bgBlur);
   float d = scene(f);
   if(d > 2.0){ o = vec4(photo, 1.0); return; } // outside all glass → plain bg
   float act = clamp(activationAt(f), 0.0, 1.0);
@@ -235,7 +242,9 @@ export default function GlassLayer({ config }: { config: LConfig }) {
       uCount = U("u_count"), uK = U("u_k"), uKClock = U("u_kClock"),
       uRefract = U("u_refract"), uDisp = U("u_disp"), uFres = U("u_fres"),
       uGlare = U("u_glare"), uAngle = U("u_angle"), uBlur = U("u_blur"),
-      uCursor = U("u_cursor"), uCuri = U("u_curi"), uSpot = U("u_spot");
+      uCursor = U("u_cursor"), uCuri = U("u_curi"), uSpot = U("u_spot"),
+      uBgBlur = U("u_bgBlur"), uBgZoom = U("u_bgZoom"),
+      uBgOffset = U("u_bgOffset");
 
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -310,6 +319,12 @@ export default function GlassLayer({ config }: { config: LConfig }) {
     // element that should grow a liquid neck as it approaches its neighbours.
     const MERGE_SELECTOR = ".clock-widget__card, .clock-widget__mini";
     let raf = 0;
+    let bgBlur = 0; // eased background-photo frost (px); ramps in the chat convo
+    // Parallax: the photo is zoomed BG_ZOOM by default, and slowly drifts (a
+    // fraction of the content scroll, eased) within the headroom the zoom gives —
+    // so it moves with the UI but much slower than the content.
+    const BG_ZOOM = 1.12;
+    const bgOff = { x: 0, y: 0 };
     const render = () => {
       const c = configRef.current ?? {};
       const n = (k: string) => Number(c[k] ?? 0);
@@ -414,6 +429,39 @@ export default function GlassLayer({ config }: { config: LConfig }) {
       gl.uniform2f(uCursor, cur.x * dpr, (H - cur.y) * dpr);
       gl.uniform1f(uCuri, cur.i);
       gl.uniform1f(uSpot, 130 * dpr); // ~130 CSS px soft glow under the cursor
+      // Frost the background photo while the chat conversation is open (class set
+      // by ChatPanel), eased in/out. Glass surfaces are unaffected.
+      const bgTarget = document.documentElement.classList.contains("chat-bg-blur")
+        ? 22
+        : 0;
+      bgBlur += (bgTarget - bgBlur) * 0.08;
+      gl.uniform1f(uBgBlur, bgBlur * dpr);
+      // Parallax offset from whichever content area is scrolling. Clamp to the
+      // headroom the zoom provides so the photo edges never slide into view, and
+      // ease it (slow follow) so it drifts gently behind the faster UI.
+      const sc =
+        document.querySelector<HTMLElement>(".chat__convo") ??
+        document.querySelector<HTMLElement>(".chat__desk-scroll");
+      const maxOff = (BG_ZOOM - 1) / (2 * BG_ZOOM);
+      // Only drift within a fraction of the zoom headroom → keeps the parallax
+      // subtle (the photo barely shifts, well short of revealing its edges).
+      const travel = maxOff * 0.4;
+      const clampOff = (v: number) => Math.max(-travel, Math.min(travel, v));
+      // Speed scales to the content length: the photo drifts across its `travel`
+      // range over the whole scrollable range, so a longer thread → slower drift
+      // per pixel. A minimum-speed floor keeps very long threads from parallaxing
+      // imperceptibly slowly.
+      const MIN_SPEED = 0.00002; // uv per scrolled px (very gentle)
+      const maxScrollY = Math.max(1, (sc?.scrollHeight ?? 0) - (sc?.clientHeight ?? 0));
+      const maxScrollX = Math.max(1, (sc?.scrollWidth ?? 0) - (sc?.clientWidth ?? 0));
+      const speedY = Math.max(travel / maxScrollY, MIN_SPEED);
+      const speedX = Math.max(travel / maxScrollX, MIN_SPEED);
+      const tX = clampOff((sc?.scrollLeft ?? 0) * speedX);
+      const tY = clampOff((sc?.scrollTop ?? 0) * speedY);
+      bgOff.x += (tX - bgOff.x) * 0.06;
+      bgOff.y += (tY - bgOff.y) * 0.06;
+      gl.uniform1f(uBgZoom, BG_ZOOM);
+      gl.uniform2f(uBgOffset, bgOff.x, bgOff.y);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       raf = requestAnimationFrame(render);
     };

@@ -56,19 +56,24 @@
   margin: 0;
   font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 12px;
-  letter-spacing: -0.24px;
+  /* match the Research Desk headings (Upcoming Events / Spotlight): those are
+     15px under zoom 1.15 (≈17.25px rendered); this page is zoom 1.25, so
+     17.25 / 1.25 = 13.8px renders at the same visual size. */
+  font-size: 13.8px;
+  letter-spacing: -0.276px;
   color: var(--accent-dark);
 }
 
+/* Sized to match the home-screen filter buttons (.rdesk__filter): those are
+   gap 5 / padding 3 7 / radius 4 / font 9.5 under zoom 1.15; this page is zoom
+   1.25, so every value is scaled by 1.15/1.25 = 0.92 to render the same size. */
 .wl-filter {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  height: 11px;
-  padding: 0 4px;
+  gap: 4.6px;
+  padding: 2.76px 6.44px;
   border: 0.4px solid #eeeeee;
-  border-radius: 1px;
+  border-radius: 3.68px;
   background: rgba(247, 245, 245, 0.25);
   color: #b1b1b1;
 }
@@ -76,7 +81,7 @@
 .wl-filter__label {
   font-family: var(--font-ui);
   font-weight: 500;
-  font-size: 7px;
+  font-size: 8.74px;
   letter-spacing: -0.28px;
 }
 
@@ -84,15 +89,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 7px;
-  height: 7px;
-  padding: 0 1px;
-  border-radius: 1px;
+  min-width: 10.12px;
+  height: 10.12px;
+  padding: 0 1.84px;
+  border-radius: 2.76px;
   background: rgba(229, 229, 229, 0.45);
   color: var(--accent-dark);
   font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 5px;
+  font-size: 6.44px;
 }
 
 /* --- Search column --- */

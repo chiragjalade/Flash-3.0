@@ -275,3 +275,49 @@
 :root[data-theme*="glass"] .rdesk__news-src-name {
   color: rgba(255, 255, 255, 0.78);
 }
+
+/* ---- Conversation view over glass + photo ---- */
+/* The user bubble keeps its dark liquid-glass look (defined in ChatPanel.css)
+   on every theme — over the photo it refracts nicely, so no override here. */
+
+/* Answer text lives in the white content box → plain dark ink (no photo halo) */
+:root[data-theme*="glass"] .msg__body p {
+  color: #101c29;
+}
+
+/* "Thought for …" is always plain white text on the photo (never in a box) */
+:root[data-theme*="glass"] .msg__thought {
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Action buttons are dark glass circles (see ChatPanel.css) → light icon glyphs */
+:root[data-theme*="glass"] .msg__act {
+  color: rgba(235, 240, 248, 0.9);
+}
+
+/* Disappearing blur box → frost fade (matches .chat__blur) not opaque white.
+   Glass keeps the original band ABOVE the prompt (the non-glass full-height
+   cover would double-frost the glass prompt). */
+:root[data-theme*="glass"] .chat__dock-fade {
+  top: auto;
+  bottom: 100%;
+  height: 72px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  -webkit-backdrop-filter: blur(7px) saturate(1.2);
+  backdrop-filter: blur(7px) saturate(1.2);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 85%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 85%);
+}
+
+/* Liquid-glass: the whole background photo is already frosted by the shader, so
+   the fade's extra blur just paints a hazy band that reads as the playground's
+   bottom edge. Drop it — the frosted playground stays continuous to the bottom
+   with the prompt floating inside it. */
+:root[data-theme="liquid-glass"] .chat__dock-fade {
+  display: none;
+}

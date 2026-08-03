@@ -238,7 +238,11 @@
   background: var(--cw-hand);
 }
 
-/* Hands pivot at the dial centre (bottom-centre origin), pointing up at 0deg */
+/* Hands pivot at the dial centre (bottom-centre origin), pointing up at 0deg.
+   Promote each hand to its own compositing layer (will-change + backface) so its
+   per-frame transform keeps repainting even when an ancestor has backdrop-filter
+   + filter (the glass card) — otherwise Chrome caches that layer and the sweeping
+   second hand appears frozen. */
 .cw-hand {
   position: absolute;
   left: 50%;
@@ -246,6 +250,8 @@
   transform-origin: bottom center;
   border-radius: 4px;
   background: var(--cw-hand);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* While switching zones, ease the hands to the new time (added transiently) */
