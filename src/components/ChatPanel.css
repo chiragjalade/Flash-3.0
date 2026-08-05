@@ -450,6 +450,61 @@
   margin-top: 14px;
 }
 
+/* bw / blue / green: the AI (left) answer is PLAIN — no box, border, glass, or
+   liquid-glass merge. Just dark text on the theme background. */
+:root:not([data-theme*="glass"]) .msg__fg .msg__content {
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+}
+:root:not([data-theme*="glass"]) .msg__fg .msg__content .msg__body p {
+  color: var(--color-text);
+  text-shadow: none;
+}
+/* buttons → a plain static icon row after the text (no glass circle, no slide) */
+:root:not([data-theme*="glass"]) .msg__content--actions {
+  padding-bottom: 14px !important;
+}
+:root:not([data-theme*="glass"]) .msg__content .msg__actions {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none !important;
+  margin: 10px 0 0;
+}
+:root:not([data-theme*="glass"]) .msg__fg .msg__act::before {
+  display: none;
+}
+/* chart cards: no box/glass either — the chart sits plain on the background */
+:root:not([data-theme*="glass"]) .msg__fg .skel--chart {
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+}
+/* "Thought for …" text + its icons, and the action icons → black */
+:root:not([data-theme*="glass"]) .msg__thought,
+:root:not([data-theme*="glass"]) .msg__act {
+  color: #000;
+}
+/* No animation on these themes — the action buttons + chart sit at their FINAL
+   resting position from the very start (no emergence / collapse). */
+:root:not([data-theme*="glass"]) .skel--chart .msg__actions {
+  transform: translateY(74px) !important;
+}
+:root:not([data-theme*="glass"]) .skel--chart:first-child .chart {
+  bottom: 18px !important;
+}
+:root:not([data-theme*="glass"]) .skel--chart .msg__actions,
+:root:not([data-theme*="glass"]) .skel--chart:first-child .chart,
+:root:not([data-theme*="glass"]) .msg__content--actions,
+:root:not([data-theme*="glass"]) .msg__content .msg__actions {
+  transition: none !important;
+}
+
 /* Two overlaid copies of the same answer layout:
    .msg__gel = white shapes only, run through the #goo metaball filter, so the
      content box + skeletons + buttons FUSE while merged and NECK apart as the
@@ -498,7 +553,7 @@
 .msg__content {
   position: relative;
   z-index: 1;
-  padding: 14px 16px;
+  padding: 20px 24px;
   border-radius: 14px;
 }
 /* the gel paints a flat dark shape behind the text box → goo neck for the buttons */
@@ -528,6 +583,222 @@
 }
 .msg__gel .msg__body p {
   color: transparent !important; /* keeps the box's size, but shows no text */
+}
+/* gel copy of the report: keep the layout (for the box shape) but no visible ink */
+.msg__gel .report {
+  color: transparent;
+}
+.msg__gel .report__rule {
+  border-color: transparent;
+}
+
+/* --- Equity-research note layout inside the answer text box ------------------
+   Header (company + key metrics | ticker/HQ/price/segment/date) → rule → summary
+   text with two small side charts. Ink is light on the dark glass; a non-glass
+   override below switches it to dark on the plain themes. */
+/* Report content sits ABOVE the tint ::before (z-index:0) so the tint no longer
+   paints over the text; a shadow keeps it legible where the tint goes clear. */
+.report__head,
+.report__rule,
+.report__body {
+  position: relative;
+  z-index: 1;
+}
+.report__head {
+  display: flex;
+  gap: 26px;
+  align-items: flex-start;
+}
+.report__title {
+  flex: 1;
+  min-width: 0;
+}
+.report__company {
+  margin: 0 0 5px;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.1;
+  color: #eef3fb;
+}
+.report__tagline {
+  margin: 0 0 11px;
+  font-size: 13px;
+  line-height: 18px;
+  color: rgba(230, 236, 245, 0.72);
+}
+.report__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  font-size: 12px;
+}
+.report__metric {
+  display: inline-flex;
+  gap: 5px;
+}
+.report__metric-k {
+  color: rgba(230, 236, 245, 0.5);
+}
+.report__metric-v {
+  color: #eef3fb;
+  font-weight: 600;
+}
+.report__meta {
+  flex: none;
+  width: 196px;
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+.report__meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 2.5px 0;
+}
+.report__meta-row dt {
+  color: rgba(230, 236, 245, 0.5);
+}
+.report__meta-row dd {
+  margin: 0;
+  color: #eef3fb;
+  font-weight: 600;
+  text-align: right;
+}
+.report__rule {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 13px 0 15px;
+}
+.report__body {
+  display: block;
+}
+.report__body::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+/* Sidebar floats right; the summary text wraps around it and flows full-width
+   below (or takes the whole width where there's no sidebar). */
+.report__side {
+  float: right;
+  width: 372px;
+  margin: 2px 0 22px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.report__text {
+  min-width: 0;
+}
+.report__chart {
+  position: relative;
+  height: 262px;
+  margin: 0;
+}
+.report__chart .chart {
+  inset: 2px 2px 18px; /* small side chart — minimal breathing room */
+}
+.report__chart figcaption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  color: rgba(230, 236, 245, 0.58);
+}
+
+/* Small key-financials table under the charts */
+.report__table {
+  font-size: 11.5px;
+}
+.report__table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.report__table th,
+.report__table td {
+  padding: 4px 6px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #eef3fb;
+}
+.report__table th:first-child,
+.report__table td:first-child {
+  text-align: left;
+  color: rgba(230, 236, 245, 0.72);
+}
+.report__table thead th {
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+.report__table-cap {
+  margin-top: 6px;
+  font-size: 10px;
+  color: rgba(230, 236, 245, 0.55);
+}
+:root:not([data-theme*="glass"]) .report__table th,
+:root:not([data-theme*="glass"]) .report__table td {
+  color: #16202e;
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+}
+:root:not([data-theme*="glass"]) .report__table th:first-child,
+:root:not([data-theme*="glass"]) .report__table td:first-child,
+:root:not([data-theme*="glass"]) .report__table-cap {
+  color: rgba(20, 30, 44, 0.62);
+}
+:root:not([data-theme*="glass"]) .report__table thead th {
+  border-bottom-color: rgba(0, 0, 0, 0.3);
+}
+
+.report__section {
+  margin-bottom: 20px;
+}
+.report__section:last-child {
+  margin-bottom: 0;
+}
+.report__section-head {
+  margin: 0 0 6px;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  color: #bcd4ff;
+}
+.report__text p {
+  line-height: 25px;
+  margin-bottom: 0;
+}
+:root:not([data-theme*="glass"]) .report__section-head {
+  color: var(--accent-dark, #1c3d66);
+}
+/* glass themes: shadow so the text stays legible where the tint fades to clear */
+:root[data-theme*="glass"] .report__company,
+:root[data-theme*="glass"] .report__tagline,
+:root[data-theme*="glass"] .report__metrics,
+:root[data-theme*="glass"] .report__meta,
+:root[data-theme*="glass"] .report__text p,
+:root[data-theme*="glass"] .report__section-head,
+:root[data-theme*="glass"] .report__chart figcaption,
+:root[data-theme*="glass"] .report__table {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.62);
+}
+
+/* plain themes: dark ink on the light background */
+:root:not([data-theme*="glass"]) .report__company,
+:root:not([data-theme*="glass"]) .report__metric-v,
+:root:not([data-theme*="glass"]) .report__meta-row dd {
+  color: #16202e;
+}
+:root:not([data-theme*="glass"]) .report__tagline,
+:root:not([data-theme*="glass"]) .report__metric-k,
+:root:not([data-theme*="glass"]) .report__meta-row dt,
+:root:not([data-theme*="glass"]) .report__chart figcaption {
+  color: rgba(20, 30, 44, 0.6);
+}
+:root:not([data-theme*="glass"]) .report__rule {
+  border-top-color: rgba(0, 0, 0, 0.16);
 }
 /* the thought is plain text, never a box → no gel shape (but keep its space) */
 .msg__gel .msg__thought {
@@ -645,21 +916,26 @@
   }
 }
 
-/* Non-glass themes (bw / blue / green): same black-to-clear liquid-glass bubble
-   as everywhere else (inherited from the base), just chunkier padding and no
-   drop shadow. */
+/* Non-glass themes (bw / blue / green): the user bubble is a subtle, brighter
+   grey solid — NO glass, frost, border, or sheen. */
 :root:not([data-theme*="glass"]) .msg__bubble {
-  padding: 15px 21px; /* fatter */
-  border-radius: 20px 20px 7px 20px;
-  box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.4),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.4); /* keep the rim, drop the cast shadow */
+  padding: 14px 19px;
+  border-radius: 18px 18px 6px 18px;
+  background: #ececec;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  color: #2b2b2b;
+  text-shadow: none;
+}
+:root:not([data-theme*="glass"]) .msg__bubble::before,
+:root:not([data-theme*="glass"]) .msg__bubble::after {
+  display: none; /* no sheen / glare */
 }
 :root:not([data-theme*="glass"]) .msg__bubble:hover {
   transform: translateY(-1px);
-  box-shadow:
-    inset 0 1px 0.5px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: none;
 }
 
 .msg__thought {
@@ -751,12 +1027,23 @@
   transform: translateY(74px); /* slides well clear of the card bottom */
 }
 .skel--chart:first-child .chart {
-  inset: 24px 20px 62px; /* extra bottom room while the buttons sit inside */
+  inset: 18px 18px 62px; /* only extra BOTTOM room while the buttons sit inside */
   transition: bottom 0.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* buttons gone → chart grows back down into the reclaimed space */
+
+/* Reserve room BELOW the answer for the buttons that sit/emerge beneath it, so
+   the next (user) message always keeps a clear gap and never overlaps them.
+   (All themes: charts reserve on the grid; glass text answers on the box. On the
+   plain themes the text buttons are in-flow, so the normal .msg gap suffices.) */
+.skel-charts {
+  padding-bottom: 90px;
+}
+:root[data-theme*="glass"] .msg__content--actions {
+  margin-bottom: 90px;
+}
+/* buttons gone → chart grows back to match the other card exactly (base 18px) */
 .msg__group--btnsplit .skel--chart:first-child .chart {
-  bottom: 32px;
+  bottom: 18px;
 }
 
 /* Circular buttons: transparent in the foreground (icon only); the gel paints the
@@ -856,6 +1143,7 @@
      fused block while the gel is opaque (the merge), then it settles into two
      cards as the gel fades. */
   flex-wrap: wrap;
+  align-items: flex-start; /* legend cards can be taller without stretching the rest */
   align-content: flex-start;
   gap: 13px;
   margin: 22px 0 0;
@@ -936,6 +1224,12 @@
   border-radius: 14px; /* match the content box */
   cursor: pointer;
 }
+/* Cards with a legend (the bar chart) are a little TALLER so the legend gets its
+   own strip at the bottom and the plot area stays square — matching the other
+   cards' plots. The row is top-aligned so the shorter cards don't stretch. */
+.skel--chart[data-chart="bar"] {
+  aspect-ratio: 1 / 1.09;
+}
 .skel--chart[data-span="full"] {
   flex-basis: 100%;
 }
@@ -994,21 +1288,24 @@
 /* Fade behind the docked prompt: content fades into the page colour just ABOVE
    the prompt, then stays solid all the way down to the bottom of the screen
    (behind the prompt) so nothing peeks out beside/under it. */
+/* Sits BEHIND the prompt, covering the dock area down to the very bottom of the
+   screen (not floating above the prompt). Messages fade into the page colour as
+   they scroll down behind the prompt; the prompt (z-index:1) stays on top. */
 .chat__dock-fade {
   position: absolute;
   left: 0;
   right: 0;
-  top: -58px; /* start the fade a little above the dock... */
-  bottom: 0; /* ...and cover down to the very bottom, behind the prompt */
+  top: 0;
+  bottom: 0;
   z-index: 0;
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    rgba(250, 250, 248, 0) 0,
-    var(--color-chat-bg, #fafaf8) 58px
+    rgba(250, 250, 248, 0) 0%,
+    var(--color-chat-bg, #fafaf8) 42%
   );
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 .chat__dock .prompt {

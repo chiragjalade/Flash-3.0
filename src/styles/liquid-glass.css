@@ -111,9 +111,14 @@
   background: linear-gradient(
     180deg,
     rgba(6, 8, 12, 0.82) 0%,
-    rgba(9, 12, 17, 0.4) 48%,
-    rgba(12, 16, 22, 0.04) 100%
+    rgba(6, 8, 12, 0.8) 55%,
+    rgba(6, 8, 12, 0.6) 78%,
+    rgba(10, 13, 18, 0.28) 90%,
+    rgba(12, 16, 22, 0.03) 100%
   );
+  /* subtle drop shadow under the glass container (the card's own box-shadow is
+     stripped for the WebGL layer, so it lives on the tint layer instead) */
+  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   z-index: 0;
 }
@@ -126,20 +131,12 @@
   z-index: 1;
 }
 /* the button's ::before becomes the same tint over its glass circle */
+/* No flat DOM circle behind the icon — the WebGL layer renders the button glass
+   and smooth-min-unions it with its card, so the button reads as JUST an icon
+   while it's inside the card, and its glass background/border necks OUT of the
+   card edge (engulfing the icon) only as it slides out. */
 :root[data-theme="liquid-glass"] .msg__fg .msg__act::before {
-  display: block;
-  background: linear-gradient(
-    180deg,
-    rgba(6, 8, 12, 0.84),
-    rgba(12, 16, 22, 0.16)
-  );
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  border: none;
-  box-shadow: none;
-  opacity: 1;
-  transform: none;
-  transition: none;
+  display: none;
 }
 
 /* User-sent bubble: WebGL glass with a WHITE-to-transparent tint (mirror of the
@@ -153,6 +150,7 @@
     rgba(255, 255, 255, 0.04) 100%
   );
   mix-blend-mode: normal;
+  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.4);
 }
 :root[data-theme="liquid-glass"] .msg__bubble {
   color: #12283e;

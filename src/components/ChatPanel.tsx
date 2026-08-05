@@ -26,12 +26,20 @@ const MOCK_PROMPTS = [
 ];
 
 const MOCK_PARAS_A = [
-  "Our program for delivery partners lets agents sign up for both pick-up and delivery services across India. It is a great opportunity to earn a sustainable income flexibly while giving our customers the best experience.",
+  "Our program for delivery partners lets agents sign up for both pick-up and delivery services across India, and it has quickly become one of the most flexible ways to earn on your own schedule. Whether you ride a bike through a dense metro or drive a small van across a cluster of towns, the platform matches you with orders that fit your vehicle, your preferred zones, and the hours you actually want to work. There is no fixed roster and no minimum commitment, so you can log in for a couple of hours between other responsibilities or run full shifts during peak demand, and the app steadily adapts the flow of requests to whatever pace you set. Payouts are transparent and itemised for every trip, incentives stack on top of the base fare during busy windows, and a dedicated partner-success team is on hand whenever something on the road needs sorting out. It is a genuine opportunity to build a sustainable, self-directed income while helping customers across the country receive their parcels quickly and reliably.",
   "This program has enabled over 64,600+ partners across India to date. To start working with India's largest integrated logistics company, download our app and start earning today.",
+  "Onboarding is designed to get you moving on the same day, and the whole flow usually takes under ten minutes from start to finish. You verify your identity with a government ID, add the bank account or wallet where you want your earnings to land, and complete a short interactive safety walkthrough that covers the basics of handling parcels, confirming drop-offs, and staying visible on the road at night. Once those steps are approved you are matched with your first trip almost immediately, and the app gently ramps up the volume of requests as it learns which areas you know best. You are never locked into a shift; you can go online, accept a few orders, and step away whenever you need to, and the system simply pauses new offers until you return. Everything from your documents to your training badges lives in one place, so if anything ever needs re-verifying you can handle it in a couple of taps without leaving the app.",
+  "Earnings scale with the zones you cover and the time of day you're active. Peak windows around morning and evening carry surge incentives, and weekly streak bonuses reward partners who stay consistent.",
+  "Every payout is broken down so there is never any guesswork about how a trip was priced. Inside the earnings tab you can open any completed delivery and see the base fare, the distance component, waiting time, customer tips, and each incentive listed on its own line, along with any fuel or charging reimbursement calculated automatically from the kilometres you actually logged. Cash-on-delivery amounts are reconciled against your ledger the moment you mark an order complete, so collected money is tracked cleanly and settled on your regular cycle with nothing left ambiguous at the end of a shift. Payouts land weekly by default, but an instant-cashout option is always available for a small fee when you need funds sooner, and a full statement can be downloaded for your own records or for a loan application whenever you ask for it. The goal is simple: you should be able to trust, down to the rupee, that what you earned is exactly what you are paid.",
+  "Vehicle flexibility is built in — bikes, three-wheelers, and small vans all qualify — and the route engine sequences batched orders efficiently, adapting in real time to traffic and weather so you spend less time backtracking.",
+  "Safety and support run underneath everything you do on the platform, quietly and around the clock. Insurance cover is active for the full duration of every assigned trip, the in-app help centre answers common questions instantly, and a dedicated partner-success team reviews escalations so disputes are resolved quickly and fairly rather than left hanging. Partners riding in flood- or heat-prone regions receive proactive advisories before conditions turn dangerous, and hazardous-condition surcharges apply automatically so nobody is ever asked to ride into unsafe weather for a flat rate. As you complete more deliveries and keep your rating strong, you unlock higher tiers that bring earlier access to peak slots, priority support, verified handling badges that customers can see, and referral rewards for bringing new partners onto the network. Community meetups and an online forum let experienced riders share local knowledge, and the highest-rated contributors are regularly invited to pilot new features before they roll out to everyone else.",
 ];
 const MOCK_PARAS_B = [
   "Based on the momentum signals over the trailing 12 months, the strategy rotates between equities and treasuries, holding whichever asset shows the stronger relative and absolute momentum.",
   "Below is a breakdown of the historical allocation and the drawdown profile across the last three market regimes.",
+  "During the first regime, a prolonged risk-on rally, the model stayed almost fully allocated to equities and captured the bulk of the upside with only shallow, short-lived pullbacks.",
+  "The second regime introduced sharp volatility, and the absolute-momentum filter moved the book into treasuries ahead of the deepest leg down, sidestepping a meaningful portion of the drawdown.",
+  "In the most recent regime the signals were mixed, producing a few whipsaw switches; net of costs the strategy still preserved capital and re-entered equities as trend strength recovered.",
 ];
 
 // Which rich block each turn streams in — rotated so the demo shows all three
@@ -41,6 +49,39 @@ const CHART_SETS: ([ChartType, ChartType] | undefined)[] = [
   ["line", "candlestick"],
   undefined, // cards
   ["bar", "line"],
+];
+
+// Mock issuer used to format a text answer as an equity-research note.
+const COMPANY = {
+  name: "Meridian Logistics plc",
+  tagline:
+    "Delivery & fulfilment at national scale — initiating coverage at Overweight, PT ₹6,600",
+  metrics: [
+    ["Rating", "Overweight"],
+    ["Price target", "₹6,600"],
+    ["Mkt cap", "₹4.28bn"],
+    ["Rev (FY)", "₹1.26bn"],
+  ] as const,
+  meta: [
+    ["Ticker", "MERL.NS · MERL LN"],
+    ["HQ", "Mumbai, India"],
+    ["Price", "₹5,123"],
+    ["Segment", "Integrated Logistics"],
+    ["Date", "5 Aug 2026"],
+  ] as const,
+};
+
+// Section headline above each summary paragraph (research-note style).
+const REPORT_SECTIONS = [
+  "Executive summary",
+  "Scale & footprint",
+  "Onboarding & activation",
+  "Earnings & incentives",
+  "Payouts & transparency",
+  "Fleet & routing",
+  "Safety & support",
+  "Coverage & reliability",
+  "Outlook",
 ];
 
 let uid = 0;
@@ -135,6 +176,7 @@ function Skeleton({
             key={i}
             className="skel skel--chart"
             data-span={spans[i]}
+            data-chart={charts?.[i]}
             onClick={gel ? undefined : () => onToggle?.(i)}
             title={gel ? undefined : "Click to resize"}
           >
@@ -178,31 +220,103 @@ function AnswerBody({
   spans: [Span, Span];
   onToggle?: (i: number) => void;
 }) {
+  // Text turns render as an equity-research note (header + rule + summary with
+  // two side charts). Chart turns keep the intro + separate chart cards.
+  if (turn.skeleton !== "charts") {
+    return (
+      <>
+        <ThoughtLine time={turn.thought} />
+        <div className="msg__content msg__content--actions report">
+          <div className="report__head">
+            <div className="report__title">
+              <h3 className="report__company">{COMPANY.name}</h3>
+              <p className="report__tagline">{COMPANY.tagline}</p>
+              <div className="report__metrics">
+                {COMPANY.metrics.map(([k, v]) => (
+                  <span className="report__metric" key={k}>
+                    <span className="report__metric-k">{k}</span>
+                    <span className="report__metric-v">{v}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <dl className="report__meta">
+              {COMPANY.meta.map(([k, v]) => (
+                <div className="report__meta-row" key={k}>
+                  <dt>{k}</dt>
+                  <dd>{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <hr className="report__rule" />
+          <div className="report__body">
+            {/* Floated sidebar: charts + table. The summary text wraps around it
+                and continues full-width below, filling any empty space. */}
+            <aside className="report__side">
+              <figure className="report__chart">
+                {!gel && <GenerativeChart kind="line" seed={5} />}
+                <figcaption>Price performance</figcaption>
+              </figure>
+              <figure className="report__chart">
+                {!gel && <GenerativeChart kind="bar" seed={11} />}
+                <figcaption>Revenue by segment</figcaption>
+              </figure>
+              <div className="report__table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>FYE Aug</th>
+                      <th>2024A</th>
+                      <th>2025E</th>
+                      <th>2026E</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Adj EPS (₹)</td><td>57.2</td><td>77.9</td><td>102.3</td></tr>
+                    <tr><td>Revenue (₹m)</td><td>1,264</td><td>1,545</td><td>1,910</td></tr>
+                    <tr><td>EBITDA (₹m)</td><td>81</td><td>108</td><td>140</td></tr>
+                    <tr><td>EBIT (₹m)</td><td>63</td><td>84</td><td>113</td></tr>
+                    <tr><td>EBIT margin</td><td>6.3%</td><td>6.7%</td><td>7.3%</td></tr>
+                  </tbody>
+                </table>
+                <div className="report__table-cap">Key financials</div>
+              </div>
+            </aside>
+            <div className="msg__body report__text">
+              {turn.paragraphs.map((p, i) => (
+                <section key={i} className="report__section">
+                  <h4 className="report__section-head">
+                    {REPORT_SECTIONS[i % REPORT_SECTIONS.length]}
+                  </h4>
+                  <p>{p}</p>
+                </section>
+              ))}
+            </div>
+          </div>
+          <MsgActions />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <ThoughtLine time={turn.thought} />
-      <div
-        className={`msg__content${turn.skeleton !== "charts" ? " msg__content--actions" : ""}`}
-      >
+      <div className="msg__content">
         <div className="msg__body">
           {turn.paragraphs.map((p, i) => (
             <p key={i}>{p}</p>
           ))}
         </div>
-        {/* Non-chart turns keep the copy/share pair INSIDE the main/text card at
-            its bottom, so it emerges out of that card the same way; chart turns
-            put it inside the chart card instead (see Skeleton). */}
-        {turn.skeleton !== "charts" && <MsgActions />}
       </div>
-      {turn.skeleton && (
-        <Skeleton
-          kind={turn.skeleton}
-          charts={turn.charts}
-          gel={gel}
-          spans={spans}
-          onToggle={onToggle}
-        />
-      )}
+      <Skeleton
+        kind="charts"
+        charts={turn.charts}
+        gel={gel}
+        spans={spans}
+        onToggle={onToggle}
+      />
     </>
   );
 }
