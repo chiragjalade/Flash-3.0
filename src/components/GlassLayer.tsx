@@ -14,7 +14,12 @@ const MAX = 32;
 // element manually tagged `.lg-glass`). Must stay in sync with the enhanced-
 // surface selector list in liquid-glass.css.
 const SELECTOR =
-  ".lg-glass, .prompt, .rdesk-card, .rdesk__spot-card, .rdesk__news-card, " +
+  // The docked (playground) prompt is deliberately NOT WebGL glass — it renders
+  // as a DOM glass surface so it stacks ABOVE the message bubbles (which ARE on
+  // the WebGL canvas) and frosts them as they scroll behind it. The hero prompt
+  // stays a single WebGL glass surface.
+  ".lg-glass, .prompt:not(.prompt--dock), " +
+  ".rdesk-card, .rdesk__spot-card, .rdesk__news-card, " +
   ".wl-results, .wl-followed__card, .wl-searchbox, .clock-widget__card, .clock-widget__mini, .theme-pop, " +
   // answer text card + chart cards + action buttons → real WebGL glass that fuses/necks
   ".msg__content, .skel--chart, .msg__act, " +
@@ -37,6 +42,7 @@ uniform vec4 u_rects[${MAX}];   // xy=center(px, GL), zw=half-size(px)
 uniform float u_radius[${MAX}];
 uniform float u_act[${MAX}];    // per-element activation 0..1 (fade in/out)
 uniform float u_merge[${MAX}];  // 1 = mergeable (moving element), 0 = static
+uniform float u_tint[${MAX}];   // 1 = black→clear vertical tint baked into the glass
 uniform int u_count;
 uniform float u_k, u_refract, u_disp, u_fres, u_glare, u_angle, u_blur;
 uniform float u_kClock;  // merge reach between the two clock elements (card ↔ button)
@@ -85,6 +91,28 @@ float activationAt(vec2 p){
     if(di < best){ best = di; a = u_act[i]; }
   }
   return a;
+}
+// Per-element vertical tint amount for the nearest tinted surface: dark near the
+// top of the element, clearing over the bottom — the black→transparent gradient
+// (answer cards) baked INTO the glass instead of layered on top in the DOM, so it
+// sits UNDER the rim/edge light (applied after this in main) rather than over it.
+float tintAt(vec2 p){
+  float best = 1e9, amt = 0.0;
+  for(int i=0;i<${MAX};i++){
+    if(i >= u_count) break;
+    if(u_tint[i] < 0.5) continue;
+    vec4 R = u_rects[i];
+    float di = sdBox(p - R.xy, R.zw, u_radius[i]);
+    if(di < best){
+      best = di;
+      float bot = R.y - R.zw.y;              // element bottom (GL y-up)
+      float vf = clamp((p.y - bot) / max(R.zw.y * 2.0, 1.0), 0.0, 1.0); // 0 bottom→1 top
+      // base black→clear falloff, plus a linear boost that adds +8% opacity at the
+      // top (0%) easing to +4% at the midpoint (50%) → 0 at the bottom.
+      amt = (smoothstep(0.0, 0.4, vf) * 0.82 + 0.08 * vf) * u_act[i];
+    }
+  }
+  return best < 2.0 ? amt : 0.0;
 }
 vec2 nrm(vec2 p){
   vec2 e = vec2(1.5, 0.0);
@@ -152,6 +180,14 @@ void main(){
   g.r = sampleBg(base + offuv * (1.0 + dispA), rimBlur).r;
   g.g = sampleBg(base + offuv, rimBlur).g;
   g.b = sampleBg(base + offuv * (1.0 - dispA), rimBlur).b;
+
+  // Black→transparent tint baked into the glass BODY (answer cards): darkens the
+  // top of the element, clearing toward the bottom. Applied here — BEFORE the rim
+  // / glare / cursor light below — so the edge highlight always draws ON TOP of the
+  // tint (consistent on every edge) instead of the DOM tint covering it at the top
+  // and the rim bleeding through where the tint goes transparent at the bottom.
+  float tf = tintAt(f);
+  g = mix(g, vec3(0.03, 0.04, 0.055), tf);
 
   // Crisp bright rim outline. It follows the sharp SDF (not the blurred backdrop),
   // so every shape AND the merged neck get a defined glass edge like the reference,
@@ -243,6 +279,7 @@ export default function GlassLayer({ config }: { config: LConfig }) {
     const U = (n: string) => gl.getUniformLocation(prog, n);
     const uRes = U("u_res"), uBgSize = U("u_bgSize"), uRects = U("u_rects"),
       uRadius = U("u_radius"), uAct = U("u_act"), uMerge = U("u_merge"),
+      uTint = U("u_tint"),
       uCount = U("u_count"), uK = U("u_k"), uKClock = U("u_kClock"),
       uRefract = U("u_refract"), uDisp = U("u_disp"), uFres = U("u_fres"),
       uGlare = U("u_glare"), uAngle = U("u_angle"), uBlur = U("u_blur"),
@@ -318,6 +355,11 @@ export default function GlassLayer({ config }: { config: LConfig }) {
     const radii = new Float32Array(MAX);
     const acts = new Float32Array(MAX);
     const merge = new Float32Array(MAX);
+    const tint = new Float32Array(MAX);
+    // Surfaces that carry the black→transparent tint baked into the glass (the
+    // answer text card + chart cards). Rendered in the shader UNDER the rim so the
+    // hover/edge highlight stays on top consistently (see tintAt / u_tint).
+    const TINT_SELECTOR = ".msg__content, .skel--chart";
     // Only the movable element(s) merge — the draggable clock. Everything else is
     // static and keeps hard, separate edges. Add selectors here for any other
     // element that should grow a liquid neck as it approaches its neighbours.
@@ -379,6 +421,7 @@ export default function GlassLayer({ config }: { config: LConfig }) {
         // clock↔button pair uses u_kClock, which is dropped to 0 (→ hard min, no
         // bulge) at rest and only raised while the clock is moving (see below).
         merge[i] = els[i]!.matches(MERGE_SELECTOR) ? 1 : 0;
+        tint[i] = els[i]!.matches(TINT_SELECTOR) ? 1 : 0;
       }
 
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -389,6 +432,7 @@ export default function GlassLayer({ config }: { config: LConfig }) {
       gl.uniform1fv(uRadius, radii);
       gl.uniform1fv(uAct, acts);
       gl.uniform1fv(uMerge, merge);
+      gl.uniform1fv(uTint, tint);
       gl.uniform1i(uCount, els.length);
       gl.uniform1f(uK, n("mergeRate") * 560 * dpr); // general merge reach (Merge Rate slider)
       // clock card ↔ button neck: 0.05 everywhere (moving, dragging near the

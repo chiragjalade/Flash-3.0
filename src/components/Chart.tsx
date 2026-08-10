@@ -226,7 +226,7 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
               fill={`url(#${gradId})`}
               dot={false}
               isAnimationActive
-              animationBegin={begin + 1180}
+              animationBegin={begin}
               animationDuration={950}
               animationEasing="ease-in-out"
             />
@@ -263,8 +263,8 @@ export default function Chart({ type, seed = 7 }: { type: ChartType; seed?: numb
               stroke={s.stroke}
               strokeWidth={1}
               isAnimationActive
-              animationBegin={begin + 1200 + si * 240}
-              animationDuration={460}
+              animationBegin={begin + si * 240}
+              animationDuration={620}
               animationEasing="ease-out"
             >
               <LabelList dataKey={s.key} position="top" fill={s.ink} style={{ fontFamily: SERIF, fontSize: 10 }} />
