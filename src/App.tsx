@@ -6,6 +6,7 @@ import GlassControls from "./components/GlassControls";
 import LiquidGlassControls from "./components/LiquidGlassControls";
 import GlassLayer from "./components/GlassLayer";
 import ClockWidget from "./components/ClockWidget";
+import SearchPalette from "./components/SearchPalette";
 import {
   GLASS_DEFAULTS,
   LIQUID_GLASS_DEFAULTS,
@@ -397,6 +398,16 @@ export default function App() {
       {theme === "liquid-glass" && (
         <LiquidGlassControls config={liquidConfig} onChange={setLiquidConfig} />
       )}
+
+      {/* Figma 1067:2599 — command palette, Alt+C+Space. Mounted here rather than
+          inside a page so it survives navigation and overlays either one. */}
+      <SearchPalette
+        activePage={page}
+        onNavigate={setPage}
+        theme={theme}
+        onThemeChange={setTheme}
+        onToggleSidebar={toggle}
+      />
 
       {/* WebGL glass: every glass surface merges (drag the clock over cards) */}
       {theme === "liquid-glass" && <GlassLayer config={liquidConfig} />}

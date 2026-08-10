@@ -1,0 +1,520 @@
+/* Command palette — Figma 1067:2599 ("search") + 1067:2657 ("Search Background").
+
+   Geometry is Figma x1.25, the same scale the rest of the content area uses
+   (ResearchDesk: 240px card -> 300px, 9px title -> 10.5px). At 1:1 the design's
+   8px section labels are unreadable in a browser.
+
+   Every colour comes from tokens.css, so the five themes carry it without a
+   per-theme rule; the two glass themes then add frost at the bottom of this file.
+   All selectors here are new, so nothing competes with glass.css and the dev/prod
+   stylesheet-order hazard documented there does not apply. */
+
+.spal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* Covers the content area only — the sidebar stays crisp, as in the design. */
+  left: var(--sidebar-w);
+  z-index: 70; /* above ClockWidget (60) and the Pro/Glass panels (50) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Inert unless fully shown — the overlay outlives `open` by ~240ms so the exit
+     animation can play, and a fading-out scrim must not swallow clicks. */
+  pointer-events: none;
+  /* Sidebar collapse is animated, so follow it rather than jumping. */
+  transition: left 0.24s ease;
+}
+.spal--in {
+  pointer-events: auto;
+}
+.app--collapsed .spal {
+  left: var(--rail-w);
+}
+
+/* --- Figma 1067:2657: blurred gradient wash over the content ---------------- */
+.spal__scrim {
+  position: absolute;
+  inset: 0;
+  /* The design rounds only the outer corners; the sidebar butts against the left. */
+  border-top-right-radius: var(--panel-radius, 45px);
+  border-bottom-right-radius: var(--panel-radius, 45px);
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(114, 114, 114, 0.25) 44.7%,
+    rgba(83, 83, 83, 0.25) 100%
+  );
+  -webkit-backdrop-filter: blur(12.5px);
+  backdrop-filter: blur(12.5px);
+  opacity: 0;
+  transition:
+    opacity 0.26s ease,
+    -webkit-backdrop-filter 0.26s ease,
+    backdrop-filter 0.26s ease;
+}
+.spal--in .spal__scrim {
+  opacity: 1;
+}
+
+/* --- panel ----------------------------------------------------------------- */
+.spal__panel {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---- entrance choreography ------------------------------------------------
+   The bar and the dropdown are animated SEPARATELY rather than as one block: the
+   bar lands first and the dropdown unfolds from underneath it, then the sections
+   settle in. That read is what makes it feel deliberate instead of a panel being
+   switched on.
+
+   Transitions, not keyframes, so the whole cascade plays in reverse on the way
+   out — and the delays are inverted per state, so the dropdown leaves first and
+   the bar follows, mirroring the order it arrived in. Each element carries its own
+   exit timing in its base rule and its enter timing in the .spal--in rule. */
+
+.spal__bar,
+.spal__body {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+/* bar: a short drop */
+.spal__bar {
+  transform: translateY(-9px);
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.4, 0, 1, 1);
+  transition-delay: 0.05s; /* exit: leaves just after the dropdown */
+}
+.spal--in .spal__bar {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.24s ease,
+    transform 0.34s cubic-bezier(0.22, 1.02, 0.36, 1);
+  transition-delay: 0s;
+}
+
+/* dropdown: travels a little further than the bar, so it reads as trailing in
+   behind it rather than the two sliding as one rigid block. */
+.spal__body {
+  transform: translateY(-14px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+  transition-delay: 0s; /* exit: goes first */
+}
+.spal--in .spal__body {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.26s ease,
+    transform 0.38s cubic-bezier(0.2, 1.04, 0.36, 1);
+  transition-delay: 0.06s;
+}
+
+/* Contents settle after the dropdown has opened. Staggered on nth-of-type, which
+   works here because the sections are <section> and the rules are <div>, so the
+   two sequences count independently. */
+.spal__sec,
+.spal__rule,
+.spal__foot {
+  opacity: 0;
+  transform: translateY(5px);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+.spal--in .spal__sec,
+.spal--in .spal__rule,
+.spal--in .spal__foot {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.3s ease,
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.spal--in .spal__sec:nth-of-type(1) {
+  transition-delay: 0.12s;
+}
+.spal--in .spal__sec:nth-of-type(2) {
+  transition-delay: 0.16s;
+}
+.spal--in .spal__sec:nth-of-type(3) {
+  transition-delay: 0.2s;
+}
+.spal--in .spal__rule:nth-of-type(1) {
+  transition-delay: 0.14s;
+}
+.spal--in .spal__rule:nth-of-type(2) {
+  transition-delay: 0.18s;
+}
+.spal--in .spal__foot {
+  transition-delay: 0.22s;
+}
+
+/* --- Figma 1067:2645: the search bar is its own box above the results ------ */
+.spal__bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 11px;
+  background: var(--color-chip-bg, #fff);
+  border: 1px solid var(--color-border);
+  /* Tighter than the body's 14px on purpose — the bar is short, so the same
+     radius rounded it almost into a pill. Both are a deliberate step past the
+     design's 6px (x1.25 = 8px). */
+  border-radius: 10px;
+  box-shadow: 0 10px 26px -14px rgba(18, 26, 40, 0.28);
+}
+
+/* Exported magnifier (Figma 1067:2647) used as a MASK, not an <img>: the asset
+   ships a hard-coded #B2B2B2 stroke, and a mask takes only its alpha so the glyph
+   picks up a themed colour instead. Path is relative, not /icons/... — Bun's CSS
+   bundler resolves url() at build time, so an absolute runtime path fails to
+   build (the /icons route only serves assets referenced from TSX via icons.ts). */
+.spal__bar-icon {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  background-color: var(--color-placeholder);
+  -webkit-mask: url("../assets/icons/spal-search.svg") center / contain no-repeat;
+  mask: url("../assets/icons/spal-search.svg") center / contain no-repeat;
+}
+
+.spal__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: -0.3px;
+  color: var(--color-text);
+}
+.spal__input::placeholder {
+  color: var(--color-placeholder);
+}
+
+/* --- keycaps (Figma 1067:2650/2651, 1698:23, 1698:33) --------------------- */
+.spal__keys {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.spal__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border: 0.8px solid var(--color-chip-border);
+  border-radius: 3px;
+  background: var(--color-chip-bg);
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--color-tab-inactive);
+}
+.spal__key--sm {
+  min-width: 15px;
+  height: 15px;
+  font-size: 8px;
+}
+.spal__key--esc {
+  font-weight: 700;
+  font-size: 6.5px;
+  letter-spacing: 0.2px;
+}
+/* Exported enter glyph (Figma 1698:27) — glyph only, no keycap box, so it masks
+   cleanly inside our own themed cap. */
+.spal__key--enter::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  background-color: currentColor;
+  -webkit-mask: url("../assets/icons/spal-kbd-enter.svg") center / contain no-repeat;
+  mask: url("../assets/icons/spal-kbd-enter.svg") center / contain no-repeat;
+}
+
+/* --- Figma 1067:2601: results panel --------------------------------------- */
+.spal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-chip-bg, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 18px 44px -20px rgba(18, 26, 40, 0.34);
+  overflow: hidden; /* clips the scroll area to the rounded corners */
+}
+.spal__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 11px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+.spal__scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.spal__scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 5px;
+}
+
+.spal__sec {
+  padding: 0 13px;
+}
+.spal__sec-label {
+  margin: 0 0 7px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: -0.3px;
+  color: var(--color-text);
+  opacity: 0.85;
+}
+/* Figma 1067:2643/2644 — the two divider lines between sections */
+.spal__rule {
+  height: 1px;
+  margin: 11px 13px;
+  background: var(--color-border);
+  opacity: 0.75;
+}
+
+/* --- chips (Figma 1067:2610/2613/2616) ----------------------------------- */
+.spal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.spal__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px;
+  padding: 0 8px;
+  border: 0.8px solid var(--color-chip-border);
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: -0.2px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+.spal__chip:hover {
+  border-color: var(--color-border);
+}
+.spal__chip[data-on="true"] {
+  background: var(--color-nav-active-bg);
+  border-color: var(--color-nav-active-bg);
+  color: #fff;
+}
+.spal__chip-n {
+  font-size: 8px;
+  opacity: 0.62;
+}
+
+/* --- rows (Figma 1067:2604-2606 / 2623 etc.) ----------------------------- */
+.spal__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.spal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 0.8px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    border-color 0.14s ease;
+}
+/* The design's resting row is a hairline outline at 20% alpha. */
+.spal__row:not([data-active="true"]) {
+  border-color: color-mix(in srgb, var(--color-border) 20%, transparent);
+}
+.spal__row[data-active="true"] {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+.spal__row-label {
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: -0.24px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spal__row-meta {
+  flex-shrink: 0;
+  font-weight: 500;
+  font-size: 9px;
+  letter-spacing: -0.18px;
+  color: var(--color-tab-inactive);
+}
+.spal__empty {
+  margin: 0;
+  padding: 6px 2px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  color: var(--color-tab-inactive);
+}
+
+/* --- Figma 1067:2652: hint bar ------------------------------------------- */
+.spal__foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 30px;
+  padding: 0 12px;
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-text) 3%, transparent);
+}
+.spal__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: -0.32px;
+  color: var(--color-text);
+  opacity: 0.72;
+}
+
+/* --- responsive ---------------------------------------------------------- */
+@media (max-width: 900px) {
+  /* Below this the sidebar is a rail at most, and a 244px inset wastes the width. */
+  .spal,
+  .app--collapsed .spal {
+    left: 0;
+    padding: 16px;
+  }
+  .spal__scrim {
+    border-radius: 0;
+  }
+}
+@media (max-height: 620px) {
+  .spal {
+    align-items: flex-start;
+    padding-top: 16px;
+  }
+}
+
+/* --- glass themes -------------------------------------------------------- */
+/* Both glass themes float their surfaces over a photo, so the palette frosts
+   instead of sitting on flat white, matching every other card in those themes. */
+:root[data-theme*="glass"] .spal__bar,
+:root[data-theme*="glass"] .spal__body {
+  background: rgba(255, 255, 255, var(--g-opacity, 0.16));
+  -webkit-backdrop-filter: blur(18px) saturate(var(--g-saturate, 1.6));
+  backdrop-filter: blur(18px) saturate(var(--g-saturate, 1.6));
+  border-color: rgba(255, 255, 255, var(--g-fresnel, 0.5));
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, var(--g-edge, 0.5)),
+    0 18px 44px -18px rgba(10, 18, 30, 0.5);
+}
+:root[data-theme*="glass"] .spal__scrim {
+  /* The photo behind is already busy; darken rather than lighten so the panel
+     keeps its contrast. */
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 18, 30, 0.28) 0%,
+    rgba(10, 18, 30, 0.42) 100%
+  );
+}
+:root[data-theme*="glass"] .spal__key,
+:root[data-theme*="glass"] .spal__chip {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: var(--color-text);
+}
+:root[data-theme*="glass"] .spal__chip[data-on="true"] {
+  background: rgba(12, 15, 22, 0.72);
+  border-color: rgba(12, 15, 22, 0.72);
+  color: #fff;
+}
+:root[data-theme*="glass"] .spal__foot {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Every hairline in here falls back to :root's --color-border (#dadada), because
+   neither glass theme redefines it. Over a flat light page that is a soft grey;
+   over a photo it is a bright white outline on every row, plus the section rules
+   and the footer edge. Pull them all down to low-alpha white so they read as
+   separation rather than as drawn lines. */
+:root[data-theme*="glass"] .spal__row:not([data-active="true"]) {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+:root[data-theme*="glass"] .spal__row[data-active="true"] {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+:root[data-theme*="glass"] .spal__rule {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 1; /* the alpha is in the colour now; double-dipping made it vanish */
+}
+:root[data-theme*="glass"] .spal__foot {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+:root[data-theme*="glass"] .spal__scroll {
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+:root[data-theme*="glass"] .spal__scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Someone who has asked for less motion still needs the palette to appear —
+   drop the travel, keep the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .spal__bar,
+  .spal__body,
+  .spal__sec,
+  .spal__rule,
+  .spal__foot,
+  .spal--in .spal__bar,
+  .spal--in .spal__body,
+  .spal--in .spal__sec,
+  .spal--in .spal__rule,
+  .spal--in .spal__foot {
+    transform: none;
+    transition: opacity 0.12s linear;
+    transition-delay: 0s;
+  }
+}
