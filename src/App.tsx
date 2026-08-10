@@ -380,7 +380,13 @@ export default function App() {
         theme={theme}
         onThemeChange={setTheme}
       />
-      {page === "Watchlist" ? <WatchlistPage /> : <ChatPanel />}
+      {page === "Watchlist" ? (
+        <WatchlistPage />
+      ) : (
+        /* liquidConfig drives the docked pill's lens (PillGlass) the same way it
+           drives the WebGL surfaces — so the Pro sliders tune both. */
+        <ChatPanel glass={theme === "liquid-glass" ? liquidConfig : undefined} />
+      )}
 
       <ClockWidget theme={theme} />
 

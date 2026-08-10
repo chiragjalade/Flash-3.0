@@ -30,7 +30,8 @@
 }
 
 /* Shared glass treatment for content components + buttons */
-:root[data-theme*="glass"] .prompt,
+:root[data-theme*="glass"] .prompt:not(.prompt--dock),
+:root[data-theme*="glass"] .prompt--dock .prompt__input,
 :root[data-theme*="glass"] .rdesk-card,
 :root[data-theme*="glass"] .rdesk__spot-card,
 :root[data-theme*="glass"] .rdesk__news-card,
@@ -111,6 +112,18 @@
 /* Search bar keeps a small, sharp radius even in the Glass theme */
 :root[data-theme*="glass"] .wl-searchbox {
   border-radius: 4px;
+}
+
+/* Docked (playground) prompt: the FORM is a transparent flex row — the glass
+   surface lives on the input pill + each button separately (buttons OUTSIDE the
+   pill), not on the whole bar. Reset any glass treatment on the form itself. */
+:root[data-theme*="glass"] .prompt--dock {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  filter: none;
+  border: none;
+  box-shadow: none;
 }
 
 /* Small round buttons keep their own shape but read a touch more solid */
@@ -299,7 +312,12 @@
 /* Disappearing blur box → frost fade (matches .chat__blur) not opaque white.
    Glass keeps the original band ABOVE the prompt (the non-glass full-height
    cover would double-frost the glass prompt). */
-:root[data-theme*="glass"] .chat__dock-fade {
+/* NOTE: scoped away from liquid-glass explicitly rather than relying on
+   liquid-glass.css overriding it later — Bun's dev server emits the stylesheets
+   in a DIFFERENT order than the production bundle (liquid-glass.css lands before
+   glass.css in dev), so equal-specificity ties here resolve differently in
+   `bun dev` vs `bun build`. Keep the two themes' dock-fade rules disjoint. */
+:root[data-theme*="glass"]:not([data-theme="liquid-glass"]) .chat__dock-fade {
   top: auto;
   bottom: 100%;
   height: 72px;
@@ -314,10 +332,7 @@
   mask-image: linear-gradient(to bottom, transparent 0%, #000 85%);
 }
 
-/* Liquid-glass: the whole background photo is already frosted by the shader, so
-   the fade's extra blur just paints a hazy band that reads as the playground's
-   bottom edge. Drop it — the frosted playground stays continuous to the bottom
-   with the prompt floating inside it. */
-:root[data-theme="liquid-glass"] .chat__dock-fade {
-  display: none;
-}
+/* Liquid-glass owns its own dock scrim — a dark progressive blur that is hidden
+   at rest and fades in while the prompt is focused / has text. See the "Typing
+   scrim" block in liquid-glass.css; do NOT display:none the fade here or that
+   whole effect never paints. */

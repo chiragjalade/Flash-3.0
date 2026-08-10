@@ -3,6 +3,8 @@ import { icons } from "../icons";
 import ResearchDesk from "./ResearchDesk";
 import { type ChartType } from "./Chart";
 import GenerativeChart from "./GenerativeChart";
+import PillGlass from "./PillGlass";
+import type { LConfig } from "../glassParams";
 import "./ChatPanel.css";
 
 // --- Mock conversation content ------------------------------------------------
@@ -472,9 +474,11 @@ function UserBubble({ text }: { text: string }) {
 function PromptBox({
   onSend,
   docked,
+  glass,
 }: {
   onSend: (text: string) => void;
   docked?: boolean;
+  glass?: LConfig;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -482,7 +486,16 @@ function PromptBox({
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    // scrollHeight is content + padding and EXCLUDES the border, but the box is
+    // border-box, so the border has to be added back or the field ends up short
+    // by exactly that much and scrolls early. Liquid Glass gives the pill a 24px
+    // transparent vertical border (it insets the scroll clip — see
+    // liquid-glass.css), which turns a latent 2px discrepancy into a visible one.
+    const cs = getComputedStyle(el);
+    const borderY =
+      (parseFloat(cs.borderTopWidth) || 0) +
+      (parseFloat(cs.borderBottomWidth) || 0);
+    el.style.height = `${el.scrollHeight + borderY}px`;
   };
 
   const submit = () => {
@@ -503,11 +516,20 @@ function PromptBox({
         submit();
       }}
     >
+      {/* Docked pill only: the hero prompt is already a WebGL glass surface, so
+          it gets its refraction from GlassLayer's shader instead. */}
+      {docked && <PillGlass targetRef={inputRef} config={glass} />}
       <textarea
         ref={inputRef}
         className="prompt__input"
         rows={1}
         placeholder="Add prompt instructions"
+        /* Spellcheck off: the red squiggles are painted as part of the text, so
+           #pill-glass-text displaces and stretches them along with the glyphs — a
+           dotted line smeared 6x through the roll-off band reads as damage. */
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
         onInput={autoGrow}
       />
       <div className="prompt__row">
@@ -522,7 +544,7 @@ function PromptBox({
   );
 }
 
-export default function ChatPanel() {
+export default function ChatPanel({ glass }: { glass?: LConfig } = {}) {
   const [activeTab, setActiveTab] = useState<"chat" | "history">("chat");
   const [deskUp, setDeskUp] = useState(false);
   const [bounce, setBounce] = useState(false); // transient landing-bounce class
@@ -671,7 +693,7 @@ export default function ChatPanel() {
           <div className="chat__dock">
             {/* Disappearing blur box — fades the thread into the docked prompt */}
             <div className="chat__dock-fade" aria-hidden />
-            <PromptBox onSend={handleSend} docked />
+            <PromptBox onSend={handleSend} docked glass={glass} />
           </div>
         </div>
       ) : (

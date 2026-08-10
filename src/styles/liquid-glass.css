@@ -98,26 +98,18 @@
   display: none;
 }
 
-/* Black-to-transparent gradient tint LAYERED ON the WebGL glass (darker at the
-   top, clear at the bottom so the refraction shows through). Added via ::before
-   because the WebGL layer strips each element's own background. Sits behind the
-   chart / text / icons. */
+/* The black→transparent tint is now baked INTO the WebGL glass itself (see
+   tintAt / u_tint in GlassLayer.tsx) — rendered UNDER the rim so the hover/edge
+   highlight stays on top consistently, instead of the DOM tint sitting OVER the
+   glass and letting the bright rim bleed through where it goes transparent at the
+   bottom. This ::before now only carries the drop shadow (the card's own
+   box-shadow is stripped for the WebGL layer, so it lives here). */
 :root[data-theme="liquid-glass"] .msg__content::before,
 :root[data-theme="liquid-glass"] .skel--chart::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    rgba(6, 8, 12, 0.82) 0%,
-    rgba(6, 8, 12, 0.8) 55%,
-    rgba(6, 8, 12, 0.6) 78%,
-    rgba(10, 13, 18, 0.28) 90%,
-    rgba(12, 16, 22, 0.03) 100%
-  );
-  /* subtle drop shadow under the glass container (the card's own box-shadow is
-     stripped for the WebGL layer, so it lives on the tint layer instead) */
   box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   z-index: 0;
@@ -168,15 +160,201 @@
   padding: 4px 8px;
 }
 
+/* Docked pill → a real lens.
+   glass.css gives every glass surface `url(#liquid-glass)`, whose displacement
+   map is fractal NOISE — that smears the backdrop randomly all over the pane
+   instead of bending it at the rim, and its "chromatic aberration" is a pair of
+   red/cyan drop-shadows on the element rather than a split of the refracted
+   content. Swap both for #pill-glass (see PillGlass.tsx): a rounded-rect bevel
+   normal map, so content passes straight through the middle and compresses only
+   near the edges, with the RGB split appearing only where it bends.
 
+   FILTER ORDER MATTERS. `url(#pill-glass)` must come FIRST: backdrop-filter
+   applies its functions left to right, so a blur ahead of the lens hands it an
+   already-smeared backdrop, and chromatic aberration is only visible against
+   high-frequency detail — blur first and the fringe is mathematically there but
+   perceptually gone. Lens first, frost afterwards.
 
+   The extra `.chat__dock` in the selector is deliberate: it outranks glass.css's
+   equal-specificity `.prompt--dock .prompt__input` rule so this wins regardless
+   of stylesheet order (dev and prod disagree — see the note in glass.css). */
+
+/* Registered so they can be TRANSITIONED — a bare custom property would snap. */
+@property --pill-frost {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 1.6px;
+}
+@property --pill-fill {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0.06;
+}
+
+:root[data-theme="liquid-glass"] .chat__dock .prompt--dock .prompt__input {
+  /* At rest: nearly clear, so the bend + colour fringe are the visible surface.
+     The residual blur is not decoration — the rim compresses the backdrop hard,
+     and with no blur at all that compression aliases into visible banding. The
+     WebGL shader frosts its rim for exactly this reason (GlassLayer.tsx:177). */
+  --pill-frost: 1.6px;
+  --pill-fill: 0.06;
+  background: rgba(255, 255, 255, var(--pill-fill));
+  -webkit-backdrop-filter: url(#pill-glass) saturate(1.5) brightness(1.05)
+    blur(var(--pill-frost));
+  backdrop-filter: url(#pill-glass) saturate(1.5) brightness(1.05)
+    blur(var(--pill-frost));
+  /* The pill's OWN text goes through a second lens (#pill-glass-text, a radial
+     barrel) so what you type refracts like everything else behind the glass —
+     straight through the middle, splaying out harder toward the caps. This
+     replaces glass.css's fake red/cyan drop-shadow `filter` too. The map fades
+     to neutral over the outer 6px, so the 1px border stays crisp instead of
+     being chewed up by the displacement. */
+  filter: url(#pill-glass-text);
+  /* Typed text is white — the base rule's var(--color-text) is near-black in
+     every theme, which disappears against the dark scrim behind this pill. The
+     shadow keeps it legible where the glass passes a bright patch of the photo. */
+  color: #ffffff;
+  caret-color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  /* Radius is 26px from ChatPanel.css now, for every theme. PillGlass reads the
+     computed value via getComputedStyle, so its SDF follows automatically — and the
+     cap matters to the lens specifically: a stadium's caps curve away and leave no
+     straight run of edge for the roll-off to bend text against. */
+  /* NO scroll-clip inset on any edge.
+
+     Overflow clips at the PADDING box, so a transparent border is the only thing
+     that can hold scrolled text away from an edge — and padding is the only thing
+     that gives resting text breathing room WITHOUT clipping. Every edge now uses
+     padding alone, so text scrolls right up to the glass on all four sides while
+     still resting 17-18px in.
+
+     The horizontal edges already behaved this way (there was never a side border),
+     which is why only the bottom changed here.
+
+     Height and spacing are untouched — the 16px moved from border to padding:
+        54  = 17 + 20 line  + 17
+        134 = 17 + 5 x 20   + 17 */
+  border-width: 0;
+  border-style: solid;
+  border-color: transparent;
+  padding: 17px 18px;
+  /* Must be restated here — ChatPanel.css's 46/126 assume a 2px border. */
+  min-height: 54px;
+  max-height: 134px;
+  /* The rim can no longer be the border (transparent now) and must NOT be an
+     inset shadow: inset shadows draw from the padding box, so glass.css's three
+     would land 12px inside and read as exactly the spurious inner border that
+     keeps getting reported. `outline` sits on the border box and ignores border
+     width, so it stays put; the bevel highlights become hairlines just outside
+     it. Displacement at the contour is ~0 (14px guard), so the lens leaves it
+     crisp. */
+  outline: 1px solid rgba(255, 255, 255, var(--g-fresnel, 0.5));
+  outline-offset: -1px;
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, calc(var(--g-edge, 0.6) * 0.5)),
+    0 1px 0 rgba(255, 255, 255, calc(var(--g-edge, 0.6) * 0.18)),
+    0 var(--g-shadow-y, 6px) var(--g-shadow-spread, 12px) -6px
+      rgba(18, 26, 40, var(--g-shadow, 0.3));
+  transition:
+    --pill-frost 0.4s ease,
+    --pill-fill 0.4s ease;
+}
+
+/* Has at least one character → back to a properly frosted pill so the text
+   you're typing reads against whatever is scrolling behind it. Gated on content
+   ONLY, not :focus — merely clicking into an empty box must not frost it.
+   (:placeholder-shown is false as soon as the value is non-empty.) */
+:root[data-theme="liquid-glass"]
+  .chat__dock:has(.prompt__input:not(:placeholder-shown))
+  .prompt__input {
+  --pill-frost: 3px;
+  --pill-fill: 0.14;
+}
+
+/* Typing scrim: in Liquid Glass Pro the dock scrim is normally invisible (the
+   page colour is transparent). While the user is focused / typing in the prompt,
+   fade in a transparent→black progressive-blur layer BETWEEN the prompt and the
+   content sliding behind it — mirroring the always-on scrim of the light themes,
+   but dark to suit the glass theme.
+
+   Geometry: glass.css shrinks the fade to a 72px band sitting ABOVE the prompt
+   (bottom: 100%). Put it back to covering the whole dock — from 64px above the
+   pill down to the very bottom of the screen — so bubbles scrolling behind the
+   pill darken instead of only getting a band over the pill's head. The dock is
+   z-index 6 (above .chat__convo) and the pill is z-index 1 inside it, so the
+   fade at z-index 0 lands above the bubbles and behind the prompt.
+
+   Layering: the base element must stay at opacity 1. An ancestor with opacity
+   < 1 becomes a *backdrop root*, which makes a descendant's backdrop-filter
+   sample the (empty) group instead of the page behind it — so gating the whole
+   fade with group opacity silently kills the blur. Instead the base only
+   positions, and each painted band carries its own backdrop-filter + opacity
+   transition (both on the same element, which composites correctly). */
+:root[data-theme="liquid-glass"] .chat__dock-fade {
+  top: -64px;
+  bottom: 0;
+  height: auto;
+  opacity: 1;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+/* upper band — gentle blur + the transparent→black scrim */
+:root[data-theme="liquid-glass"] .chat__dock-fade::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.34) 52%,
+    rgba(0, 0, 0, 0.62) 82%
+  );
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 30%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 30%);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+/* lower band — frosts the band above it too, so blur ramps up toward the pill */
+:root[data-theme="liquid-glass"] .chat__dock-fade::after {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 38%, #000 72%);
+  mask-image: linear-gradient(to bottom, transparent 38%, #000 72%);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+/* Gated on the box having CONTENT, not on :focus — clicking into an empty prompt
+   must leave the thread unshaded; the scrim is there to back the text you type. */
+:root[data-theme="liquid-glass"]
+  .chat__dock:has(.prompt__input:not(:placeholder-shown))
+  .chat__dock-fade::before,
+:root[data-theme="liquid-glass"]
+  .chat__dock:has(.prompt__input:not(:placeholder-shown))
+  .chat__dock-fade::after {
+  opacity: 1;
+}
+
+/* --pill-btn also sized the top-edge scrim's horizontal inset. That scrim is gone:
+   it existed to cover the top roll-off band, and with the band removed AND text now
+   scrolling to the top edge it would only have darkened the text itself. */
+
+/* Docked buttons sit 32px tall in a 54px single-line pill, so their inset is
+   (54 − 32) / 2 = 11px, not the 36px-button 5px that ChatPanel.css assumes. Same
+   principle: pinned to the bottom, spaced exactly as the old centring left them
+   on one line. Keep this in step with min-height and the button size. */
+:root[data-theme="liquid-glass"] .chat__dock .prompt__attach,
+:root[data-theme="liquid-glass"] .chat__dock .prompt__send {
+  margin-bottom: 11px;
+}
 
 /* Attach (+) and Send buttons → dark translucent glass, squarish, ~40% bigger,
    with the same hover-lift / press feel. */
 :root[data-theme="liquid-glass"] .prompt__attach,
 :root[data-theme="liquid-glass"] .prompt__send {
-  width: 32px; /* ~25% bigger than the 25/26px originals */
-  height: 32px;
+  width: var(--pill-btn, 32px);
+  height: var(--pill-btn, 32px);
   border-radius: 10px; /* squarish, not a circle */
   background: rgba(12, 15, 22, 0.82) !important;
   -webkit-backdrop-filter: blur(8px) saturate(1.1) brightness(0.9);
@@ -220,10 +398,39 @@
   height: 15px;
 }
 
-/* Prompt placeholder: larger + a subtle white, with a soft shadow for legibility
-   over the bright glass/photo */
+/* Prompt placeholder: larger, white, and flat. The old rgba(0,0,0,.38) never
+   matched this rule's own description and went invisible once the pill dropped to
+   6% fill over dark glass. `text-shadow: none` is required, not tidiness — the
+   typed-text rule above sets a shadow on the input itself and ::placeholder would
+   otherwise inherit it (a declaration here always beats an inherited value,
+   regardless of specificity). */
 :root[data-theme="liquid-glass"] .prompt__input::placeholder {
-  color: rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: none;
   font-size: 15px;
+}
+
+/* NO native scrollbar on the docked pill. Two separate reasons, both structural:
+
+   1. Chrome does not clip a scrollbar to `border-radius`. On a 26px-radius pill the
+      track is a straight vertical strip at the padding box's right edge, so near
+      the rounded corners it sits outside the visible glass — it "comes out of" the
+      pill.
+   2. It also lands inside the roll-off band (the band wraps the sides at dn < 19px,
+      and the scrollbar is ~6px from that edge), so #pill-glass-text displaces and
+      stretches it along with everything else. A smeared scroll thumb reads as
+      damage, the same way the spellcheck squiggles did.
+
+   `overflow-y: auto` stays, so wheel, trackpad, caret and drag scrolling all still
+   work — only the indicator is hidden. The alternative, keeping a scrollbar and
+   adding `clip-path: inset(0 round 26px)` to clip it, also clips the pill's OUTER
+   drop shadow away, which costs more than the scrollbar is worth. */
+:root[data-theme="liquid-glass"] .chat__dock .prompt__input {
+  scrollbar-width: none; /* Firefox */
+}
+:root[data-theme="liquid-glass"] .chat__dock .prompt__input::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 

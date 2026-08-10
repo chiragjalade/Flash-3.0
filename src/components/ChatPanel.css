@@ -615,8 +615,9 @@
 }
 .report__company {
   margin: 0 0 5px;
-  font-size: 27px;
-  font-weight: 700;
+  font-family: "PT Serif", Georgia, "Times New Roman", serif;
+  font-size: 32.67px;
+  font-weight: 400;
   letter-spacing: -0.4px;
   line-height: 1.1;
   color: #eef3fb;
@@ -1003,9 +1004,19 @@
 .msg__content--actions {
   overflow: visible; /* let the buttons slide out of the card */
 }
+
+/* ONE timing for the whole split-out gesture: the buttons sliding out, and the
+   card reclaiming the space they leave. Both duration AND easing are shared — with
+   equal durations but different curves the two still drift apart mid-flight, so the
+   gap would visibly close ahead of the buttons that vacated it. */
+:root {
+  --btn-split-dur: 2.4s;
+  --btn-split-ease: cubic-bezier(0.32, 0, 0.18, 1);
+}
+
 .msg__content--actions {
   padding-bottom: 48px; /* room for the buttons while they sit inside the card */
-  transition: padding-bottom 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: padding-bottom var(--btn-split-dur) var(--btn-split-ease);
 }
 /* once the buttons have separated out, reclaim that reserved space smoothly */
 .msg__group--btnsplit .msg__content--actions {
@@ -1020,7 +1031,9 @@
   gap: 14px;
   margin: 0;
   transform: translateY(0);
-  transition: transform 1.3s cubic-bezier(0.32, 0, 0.18, 1);
+  /* Slow glide out of the bubble. The travel is only 74px, so duration is what
+     sells the goo necking apart — at 1.3s it read as a quick pop. */
+  transition: transform var(--btn-split-dur) var(--btn-split-ease);
 }
 .msg__group--btnsplit .skel--chart .msg__actions,
 .msg__group--btnsplit .msg__content .msg__actions {
@@ -1028,7 +1041,8 @@
 }
 .skel--chart:first-child .chart {
   inset: 18px 18px 62px; /* only extra BOTTOM room while the buttons sit inside */
-  transition: bottom 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  /* chart cards reclaim the same gap the same way text does */
+  transition: bottom var(--btn-split-dur) var(--btn-split-ease);
 }
 
 /* Reserve room BELOW the answer for the buttons that sit/emerge beneath it, so
@@ -1274,10 +1288,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 2;
+  z-index: 6; /* ABOVE the conversation/bubbles so the pill stays on top */
   display: flex;
   justify-content: center;
-  padding: 8px 24px 22px;
+  padding: 8px 16px 22px;
   pointer-events: none; /* transparent sides let scroll pass to the thread */
 }
 
@@ -1295,23 +1309,171 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
+  top: -64px; /* extend upward so the blur has room to ramp in gradually */
   bottom: 0;
   z-index: 0;
   pointer-events: none;
+  /* colour scrim: fade content into the page colour (smooth, no hard band).
+     Also masked so its own top edge is soft. */
   background: linear-gradient(
     to bottom,
     rgba(250, 250, 248, 0) 0%,
-    var(--color-chat-bg, #fafaf8) 42%
+    color-mix(in srgb, var(--color-chat-bg, #fafaf8) 60%, transparent) 55%,
+    var(--color-chat-bg, #fafaf8) 82%
   );
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  /* gentlest blur layer, eased in from the top so nothing is cut sharply */
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 26%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 26%);
+}
+/* Progressive (layered) blur: two more stacked bands with INCREASING blur radius,
+   each revealed lower down via a gradient mask. Because each layer frosts the one
+   beneath it, the blur strength ramps up smoothly toward the prompt instead of a
+   single hard-edged blur. */
+.chat__dock-fade::before,
+.chat__dock-fade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.chat__dock-fade::before {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 28%, #000 55%);
+  mask-image: linear-gradient(to bottom, transparent 28%, #000 55%);
+}
+.chat__dock-fade::after {
+  -webkit-backdrop-filter: blur(13px);
+  backdrop-filter: blur(13px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 52%, #000 80%);
+  mask-image: linear-gradient(to bottom, transparent 52%, #000 80%);
 }
 
 .chat__dock .prompt {
   position: relative;
   z-index: 1; /* keep the prompt above its fade */
   margin-top: 0;
-  width: 789px; /* 544 + 45% */
-  max-width: 100%;
+  width: 100%;
+  max-width: 880px; /* wider pill */
+}
+
+/* ---- Chat-playground (docked) prompt → input pill with FLANKING buttons -----
+   Per Figma (node 1015:281): the rounded input sits in the middle, the attach
+   (+) circle OUTSIDE to its left and the send button OUTSIDE to its right. The
+   form is just a transparent flex row. LAYOUT props apply to every theme; the
+   SURFACE (white pill / circles) is scoped to the non-glass themes so glass.css
+   can supply the glass surface for the glass themes. */
+.chat__dock .prompt {
+  flex-direction: row;
+  /* Bottom-aligned, not centred: the input grows upward as it wraps, and centring
+     dragged the two buttons up with it so they drifted away from the send line.
+     `.prompt__input` sets align-self: stretch, so it still fills the row. The
+     buttons carry a margin-bottom that reproduces their single-line inset exactly,
+     so a 1-line pill looks unchanged and only taller ones differ. */
+  align-items: flex-end;
+  gap: 9px;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.chat__dock .prompt__row {
+  display: contents; /* attach + send become row items flanking the input */
+}
+
+/* the input itself is now the capsule (layout for all themes) */
+.chat__dock .prompt__input {
+  order: 2;
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 46px;
+  /* exactly 5 lines, then scroll: 5 * 20px line-height + 26px vertical padding.
+     autoGrow() keeps writing the full scrollHeight to style.height, but max-height
+     wins, so the box stops growing and overflow-y:auto takes over. */
+  max-height: 126px;
+  margin: 0;
+  padding: 13px 18px; /* vertical-centre the single line + small left padding */
+  font-size: 14.5px;
+  line-height: 20px;
+  /* Capped, not 999px. At one line the browser clamps this to half the height so it
+     still renders as a true pill; as the field wraps it becomes a rounded RECTANGLE
+     instead of stretching into a stadium. Applies to every theme — Liquid Glass Pro
+     had its own 26px override for this, and the oval was every other theme still
+     inheriting 999px. */
+  border-radius: 26px;
+}
+/* non-glass surface: white pill */
+:root:not([data-theme*="glass"]) .chat__dock .prompt__input {
+  background: #ffffff;
+  border: 1px solid var(--color-prompt-border);
+  box-shadow: 0 8px 24px -16px rgba(0, 0, 0, 0.28);
+}
+/* glass surface comes from glass.css; just centre the placeholder + left pad
+   (overrides the theme's default .prompt__input padding of 4px 8px) */
+:root[data-theme*="glass"] .chat__dock .prompt__input {
+  padding: 13px 18px;
+}
+
+/* attach (+) circle — layout (all themes) */
+.chat__dock .prompt__attach {
+  order: 1;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  margin-bottom: 5px; /* (46 min-height − 36 button) / 2 — matches old centring */
+}
+/* attach surface — white circle w/ hairline border (Figma Ellipse 625) */
+:root:not([data-theme*="glass"]) .chat__dock .prompt__attach {
+  border: 1px solid var(--color-attach-border);
+  background: #ffffff;
+  color: var(--color-text);
+  box-shadow: 0 6px 18px -13px rgba(0, 0, 0, 0.3);
+}
+
+/* send circle — layout (all themes) */
+.chat__dock .prompt__send {
+  order: 3;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin-left: 0;
+  margin-bottom: 5px; /* (46 min-height − 36 button) / 2 — matches old centring */
+  border-radius: 50%;
+}
+/* Non-glass themes: light circle + the EXACT Figma send triangle glyph
+   (node 1015:290 "Vector"), recoloured to the theme text colour via a mask. */
+:root:not([data-theme*="glass"]) .chat__dock .prompt__send {
+  background: var(--color-chip-bg, #fafaf8);
+  border: 1px solid var(--color-attach-border);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 6px 18px -13px rgba(0, 0, 0, 0.3);
+  color: var(--color-text);
+}
+:root:not([data-theme*="glass"]) .chat__dock .prompt__send:hover {
+  transform: translateY(-1px);
+  background: #ffffff;
+  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.34);
+}
+:root:not([data-theme*="glass"]) .chat__dock .prompt__send:active {
+  transform: scale(0.93);
+}
+:root:not([data-theme*="glass"]) .chat__dock .prompt__send img {
+  display: none;
+}
+:root:not([data-theme*="glass"]) .chat__dock .prompt__send::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19.35 20.1316'%3E%3Cpath d='M6.37406 13.2955V6.7742L14.1181 10.0348L6.37406 13.2955ZM7.18922 12.0727L12.019 10.0348L7.18922 7.99694V9.42346L9.6347 10.0348L7.18922 10.6462V12.0727Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19.35 20.1316'%3E%3Cpath d='M6.37406 13.2955V6.7742L14.1181 10.0348L6.37406 13.2955ZM7.18922 12.0727L12.019 10.0348L7.18922 7.99694V9.42346L9.6347 10.0348L7.18922 10.6462V12.0727Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
 }
