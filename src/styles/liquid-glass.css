@@ -114,6 +114,64 @@
   pointer-events: none;
   z-index: 0;
 }
+/* Bottom-edge highlight on the tinted surfaces — the bright bloom where the
+   black-to-transparent gradient runs out.
+
+   Placed here rather than in the shader on purpose. The tint itself IS in the
+   shader (tintAt / u_tint in GlassLayer.tsx, dark at the top clearing toward the
+   bottom), but the WebGL canvas sits at z-index -1 while this has to read as light
+   catching the near edge, in front of the glass. A pseudo-element also survives
+   `.lg-webgl-active`, which strips the element's own background/border/shadow with
+   !important but says nothing about its children.
+
+   ::after because ::before already carries these cards' drop shadow.
+
+   Two stacked radials rather than one: a tight core for the bright sliver sitting
+   on the edge, and a wide low-alpha bloom spreading along it. A single gradient
+   either reads as a hard line or as fog, not as both. */
+:root[data-theme="liquid-glass"] .msg__content::after,
+:root[data-theme="liquid-glass"] .skel--chart::after {
+  content: "";
+  position: absolute;
+  /* Inset from the sides so the band never reaches the 14px corners — no need to
+     clip it to the radius, and the ends have room to feather out. */
+  left: 7%;
+  right: 7%;
+  bottom: -1px; /* a hair of bleed, so the light sits ON the edge not above it */
+  height: 34px;
+  pointer-events: none;
+  z-index: 2; /* in front of .msg__body (z-index 1), as in the reference */
+  background:
+    radial-gradient(
+      ellipse 26% 92% at 50% 100%,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(255, 255, 255, 0.34) 46%,
+      transparent 76%
+    ),
+    radial-gradient(
+      ellipse 74% 155% at 50% 100%,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0.09) 52%,
+      transparent 80%
+    );
+  /* The radials taper horizontally already, but the element is a rectangle — this
+     guarantees the band has no detectable end. */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 20%,
+    #000 80%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 20%,
+    #000 80%,
+    transparent 100%
+  );
+}
+
 /* keep the chart above the tint WITHOUT disturbing its absolute fill */
 :root[data-theme="liquid-glass"] .skel--chart > .chart {
   z-index: 1;
