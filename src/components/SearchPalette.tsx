@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import "./SearchPalette.css";
 
 /* Command palette — Figma node 1067:2599 ("search") on top of 1067:2657
@@ -75,6 +82,25 @@ export default function SearchPalette({
   const [recent, setRecent] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const footRef = useRef<HTMLDivElement>(null);
+  /* The dropdown's height is measured and applied explicitly rather than left to
+     `auto`. Two reasons: `auto` cannot be transitioned, and while the panel was
+     centre-aligned every content change re-centred it, so the search bar drifted
+     up and down as you typed. The panel is now top-anchored and only this value
+     moves, which pins the bar and grows the dropdown from its bottom edge alone.
+     `ready` withholds the transition until after the first measurement, or the
+     dropdown animates open from 0 on top of the entrance. */
+  const [bodyH, setBodyH] = useState<number | null>(null);
+  /* Vertical centring, resolved ONCE per open rather than continuously. Centring
+     derives the top from the height, so recomputing it on every content change is
+     exactly what made the search bar drift while typing. Measured against the
+     panel's height at open — when the full list is showing — so it opens centred,
+     and then held, so the bar stays put and the dropdown shrinks from its bottom
+     edge alone. Re-derived on window resize only. */
+  const [topOffset, setTopOffset] = useState(0);
+  const [ready, setReady] = useState(false);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -226,6 +252,60 @@ export default function SearchPalette({
     };
   }, [mounted, open]);
 
+  useLayoutEffect(() => {
+    if (!mounted) {
+      setReady(false);
+      return;
+    }
+    const measure = (recentre: boolean) => {
+      const inner = innerRef.current;
+      const wrap = wrapRef.current;
+      if (!inner || !wrap) return;
+      // Cap against the space actually left in the overlay rather than a CSS
+      // percentage — the panel's own height is content-driven, so a percentage
+      // max-height inside it resolves against a moving target.
+      const style = getComputedStyle(wrap);
+      const avail =
+        wrap.clientHeight -
+        parseFloat(style.paddingTop) -
+        parseFloat(style.paddingBottom) -
+        54; // bar (40) + panel gap (14)
+      const foot = footRef.current?.offsetHeight ?? 0;
+      /* Measure the UNCONSTRAINED wrapper, not .spal__scroll: a scroll container's
+         scrollHeight never reports less than its own clientHeight, so measuring it
+         would let the dropdown grow but never shrink. The wrapper has no height of
+         its own, so it tracks the content both ways — but it also sits inside the
+         scroller's padding, which therefore has to be added back by hand. */
+      const scroller = listRef.current;
+      const pad = scroller
+        ? (() => {
+            const cs = getComputedStyle(scroller);
+            return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+          })()
+        : 0;
+      const want = inner.scrollHeight + pad + foot + 2; // +2 = the body's 1px borders
+      const h = Math.max(80, Math.min(want, avail));
+      setBodyH(h);
+      if (recentre) setTopOffset(Math.max(0, Math.round((avail - h) / 2)));
+    };
+    // First pass recentres — bodyH is still null here, so the body is at its
+    // natural height and this measures the panel as the user will first see it.
+    measure(true);
+    // Content changes move the height only. ResizeObserver also fires once on
+    // observe, which is why this one must not recentre.
+    const ro = new ResizeObserver(() => measure(false));
+    if (innerRef.current) ro.observe(innerRef.current);
+    const onResize = () => measure(true);
+    window.addEventListener("resize", onResize);
+    // Transition only from the second frame on, so the first height lands silently.
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", onResize);
+      cancelAnimationFrame(raf);
+    };
+  }, [mounted]);
+
   useEffect(() => {
     if (shown) inputRef.current?.focus();
   }, [shown]);
@@ -285,12 +365,22 @@ export default function SearchPalette({
   ];
 
   return (
-    <div className={`spal${shown ? " spal--in" : ""}`} role="dialog" aria-modal="true" aria-label="Search">
+    <div
+      className={`spal${shown ? " spal--in" : ""}`}
+      ref={wrapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search"
+    >
       {/* Figma 1067:2657 — blurred gradient over the content area only; the
           sidebar stays crisp, as in the design. */}
       <div className="spal__scrim" onClick={close} aria-hidden />
 
-      <div className="spal__panel">
+      <div
+        className="spal__panel"
+        data-ready={ready}
+        style={{ marginTop: `${topOffset}px` }}
+      >
         {/* Figma 1067:2645 — the input is its own rounded box above the results */}
         <div className="spal__bar">
           <span className="spal__bar-icon" aria-hidden />
@@ -311,8 +401,13 @@ export default function SearchPalette({
         </div>
 
         {/* Figma 1067:2601 */}
-        <div className="spal__body">
+        <div
+          className="spal__body"
+          data-ready={ready}
+          style={bodyH != null ? { height: `${bodyH}px` } : undefined}
+        >
           <div className="spal__scroll" ref={listRef}>
+            <div className="spal__inner" ref={innerRef}>
             <section className="spal__sec">
               <h2 className="spal__sec-label">Searching For</h2>
               <div className="spal__chips">
@@ -356,10 +451,11 @@ export default function SearchPalette({
                 <p className="spal__empty">No actions match.</p>
               )}
             </section>
+            </div>
           </div>
 
           {/* Figma 1067:2652 + 1698:16/17/30 — hint bar pinned to the panel base */}
-          <div className="spal__foot">
+          <div className="spal__foot" ref={footRef}>
             <span className="spal__hint">
               <kbd className="spal__key spal__key--sm">↑</kbd>
               <kbd className="spal__key spal__key--sm">↓</kbd>

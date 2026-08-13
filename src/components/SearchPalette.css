@@ -18,7 +18,12 @@
   left: var(--sidebar-w);
   z-index: 70; /* above ClockWidget (60) and the Pro/Glass panels (50) */
   display: flex;
-  align-items: center;
+  /* Top-anchored, with the centring offset supplied as the panel's margin-top from
+     JS. `align-items: center` cannot work here: it derives the top from the live
+     height, so every change in the dropdown re-centres the panel and drags the
+     search bar with it. Computing the same offset once per open gives the centred
+     look without the drift — see the measure effect. */
+  align-items: flex-start;
   justify-content: center;
   padding: 24px;
   /* Inert unless fully shown — the overlay outlives `open` by ~240ms so the exit
@@ -119,6 +124,27 @@
     opacity 0.26s ease,
     transform 0.38s cubic-bezier(0.2, 1.04, 0.36, 1);
   transition-delay: 0.06s;
+}
+/* Height is animated separately from the entrance, and only once the first
+   measurement has landed — otherwise the dropdown unrolls from 0 while it is also
+   fading and translating in. */
+.spal--in .spal__body[data-ready="true"] {
+  transition:
+    opacity 0.26s ease 0.06s,
+    transform 0.38s cubic-bezier(0.2, 1.04, 0.36, 1) 0.06s,
+    height 0.32s cubic-bezier(0.22, 0.9, 0.24, 1);
+}
+
+/* Only smooth the recentre once a first offset has landed, or the panel slides
+   down from the top edge as it opens. */
+.spal__panel[data-ready="true"] {
+  transition: margin-top 0.3s cubic-bezier(0.22, 0.9, 0.24, 1);
+}
+
+/* The measured wrapper. Its own height stays auto — it is what gets measured, so
+   constraining it would make the measurement circular. */
+.spal__inner {
+  display: flow-root;
 }
 
 /* Contents settle after the dropdown has opened. Staggered on nth-of-type, which
@@ -253,7 +279,10 @@
 
 /* --- Figma 1067:2601: results panel --------------------------------------- */
 .spal__body {
-  flex: 1;
+  /* Height comes from JS (see the measure effect) so it can be transitioned —
+     `auto` cannot be. flex:0 0 auto so the value is honoured instead of being
+     stretched to fill the panel. */
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -498,6 +527,67 @@
 }
 :root[data-theme*="glass"] .spal__scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.22);
+}
+
+/* --- Liquid Glass Pro only --------------------------------------------------
+   Scoped to the exact theme, not [data-theme*="glass"], so the plain Glass theme
+   keeps its lighter treatment. Same specificity as the shared block above (one
+   attribute selector each), so these must stay BELOW it — one stylesheet, so
+   source order settles it and the dev/prod ordering hazard does not apply.
+
+   The surface goes DARK here rather than just blurrier. White text needs something
+   dark behind it; over the light frost above it would have had almost no contrast,
+   which is why this flips the fill instead of only raising the blur. */
+:root[data-theme="liquid-glass"] .spal__bar,
+:root[data-theme="liquid-glass"] .spal__body {
+  background: rgba(12, 18, 30, 0.46);
+  -webkit-backdrop-filter: blur(34px) saturate(1.35) brightness(0.92);
+  backdrop-filter: blur(34px) saturate(1.35) brightness(0.92);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0.5px rgba(255, 255, 255, 0.22),
+    0 22px 52px -20px rgba(4, 10, 20, 0.62);
+}
+
+/* --color-text is #0e1a2b in this theme, so every label has to be restated. The
+   shadow is for the bright patches of the photo the blur does not fully flatten. */
+:root[data-theme="liquid-glass"] .spal__input,
+:root[data-theme="liquid-glass"] .spal__sec-label,
+:root[data-theme="liquid-glass"] .spal__row-label {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+:root[data-theme="liquid-glass"] .spal__input::placeholder,
+:root[data-theme="liquid-glass"] .spal__row-meta,
+:root[data-theme="liquid-glass"] .spal__empty {
+  color: rgba(255, 255, 255, 0.58);
+  text-shadow: none;
+}
+:root[data-theme="liquid-glass"] .spal__hint {
+  color: #fff;
+  opacity: 0.8;
+}
+:root[data-theme="liquid-glass"] .spal__bar-icon {
+  background-color: rgba(255, 255, 255, 0.62);
+}
+:root[data-theme="liquid-glass"] .spal__key {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.78);
+}
+:root[data-theme="liquid-glass"] .spal__chip {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.88);
+}
+:root[data-theme="liquid-glass"] .spal__chip[data-on="true"] {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.9);
+  color: #0b1220; /* the one place dark-on-light is right — it marks the selection */
+}
+:root[data-theme="liquid-glass"] .spal__foot {
+  background: rgba(255, 255, 255, 0.05);
+  border-top-color: rgba(255, 255, 255, 0.12);
 }
 
 /* Someone who has asked for less motion still needs the palette to appear —
