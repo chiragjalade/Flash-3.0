@@ -130,7 +130,9 @@
    on the edge, and a wide low-alpha bloom spreading along it. A single gradient
    either reads as a hard line or as fog, not as both. */
 :root[data-theme="liquid-glass"] .msg__content::after,
-:root[data-theme="liquid-glass"] .skel--chart::after {
+:root[data-theme="liquid-glass"] .skel--chart::after,
+:root[data-theme="liquid-glass"] .wl-results::after,
+:root[data-theme="liquid-glass"] .wl-followed__card::after {
   content: "";
   position: absolute;
   /* Inset from the sides so the band never reaches the 14px corners — no need to
@@ -170,6 +172,62 @@
     #000 80%,
     transparent 100%
   );
+}
+
+/* --- Watchlist cards -------------------------------------------------------
+   Same black→transparent tint as the answer cards. The tint itself is painted by
+   the shader (both selectors are in TINT_SELECTOR in GlassLayer.tsx, so they get
+   the identical tintAt() falloff) — what's left here is the geometry the
+   pseudo-element highlight needs, plus the text.
+
+   `position: relative` for the ::after above; `isolation: isolate` because that
+   highlight is moved BEHIND the content on these two (see below) and relative
+   positioning alone is not a stacking context — a z-index of -1 would escape the
+   card and land behind the WebGL canvas. */
+:root[data-theme="liquid-glass"] .wl-results,
+:root[data-theme="liquid-glass"] .wl-followed__card {
+  position: relative;
+  isolation: isolate;
+}
+
+/* The one deliberate difference from the answer cards, which paint the bloom in
+   FRONT of their content: a watchlist card fills top-to-bottom with rows, so a
+   bright band in front would wash out the last company name. Behind the rows it
+   still reads as light on the near edge, since the card's own background is
+   transparent under the WebGL glass. */
+:root[data-theme="liquid-glass"] .wl-results::after,
+:root[data-theme="liquid-glass"] .wl-followed__card::after {
+  z-index: -1;
+}
+
+/* The tint is darkest at the TOP of the card, and glass.css styles this page for
+   a LIGHT glass surface (#0f1b28 company names + a white halo behind them). Over
+   the tint that inverts into unreadable dark-on-dark, so the ink flips to white
+   with a dark halo — the same treatment the news cards already use.
+
+   `.wl-results` is in the selector ONLY to outrank glass.css: its
+   `:root[data-theme*="glass"] .wl-row__name` (which matches this theme too) has
+   exactly this rule's specificity, and Bun emits the two stylesheets in a
+   different order in `bun dev` than in the production bundle — so an
+   equal-specificity tie here would give white text in one and dark in the other.
+   Every `.wl-row__name` lives inside `.wl-results` or `.wl-followed__card` (the
+   followed rows reuse the class for their ink), so the extra class changes
+   nothing but the weight. */
+:root[data-theme="liquid-glass"] .wl-results .wl-row__name,
+:root[data-theme="liquid-glass"] .wl-followed__card .wl-row__name {
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme="liquid-glass"] .wl-results__empty {
+  color: rgba(255, 255, 255, 0.6);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Row hover was `--accent` (#2b3a63) at 10% — a dark navy wash that disappears
+   against the tint. */
+:root[data-theme="liquid-glass"] .wl-row:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 /* keep the chart above the tint WITHOUT disturbing its absolute fill */

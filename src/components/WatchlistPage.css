@@ -226,7 +226,17 @@
 .wl-followed {
   flex: 1;
   min-width: 0;
-  max-width: 600px;
+  /* 600 for the card + the alley beside it, so widening the alley does not shrink
+     the card. The section header lives in the same content box, which keeps the
+     Filter chip aligned to the card's right edge rather than the alley's. */
+  max-width: 694px;
+  /* Alley to the right of the card for the View/Delete pair to emerge into: 66px of
+     buttons + a 26px gap off the card's edge. Reserved rather than borrowed, because
+     `.wpage__body` is `overflow-y: auto`, which computes overflow-x to `auto` as
+     well — anything past its padding box would be clipped or would raise a
+     horizontal scrollbar. Where the window is too narrow for the cap to bind, the
+     column flex-fills and the card gives up this width instead. */
+  padding-right: 94px;
 }
 
 .wl-count {
@@ -239,6 +249,11 @@
 }
 
 .wl-followed__card {
+  /* positioned + isolated for the edge glow below (and, in Liquid Glass Pro, the
+     bottom-edge highlight): both paint at z-index -1, and without a stacking context
+     that would drop them behind the WebGL canvas instead of behind the rows. */
+  position: relative;
+  isolation: isolate;
   min-height: 300px;
   padding: 18px 16px 18px 17px;
   background: var(--accent-soft);
@@ -248,16 +263,699 @@
   flex-direction: column;
   gap: 10px;
   transform-origin: center;
-  transform-style: preserve-3d;
+  /* NO `transform-style: preserve-3d`. The tilt carries its own perspective() and no
+     child of this card has a 3D transform, so preserve-3d bought nothing — while
+     costing a 3D rendering context, inside which descendants cannot be composited
+     independently. Every animation in here (the edge glow, the button travel, the
+     flare) was being rasterised with the card instead of on the compositor. */
   will-change: transform;
   /* eases into the cursor-tracked tilt and springs back on leave */
   transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+
+/* --- The card's right edge, lighting up as the buttons come home ---------------
+   Phase one of the merge. It brightens through the pair's whole return trip and
+   peaks at the frame they touch the edge, so the light reads as caused by them
+   rather than as a flash that happens afterwards.
+
+   Same construction as the bottom-edge highlight on the liquid-glass cards, turned
+   on its side: a tight bright core plus a wide low-alpha bloom, both centred on
+   `--merge-y` — the y of the row that is merging — so the edge glows along its whole
+   length but is unmistakably hottest where contact happens. One gradient alone gives
+   either a hard line or fog, never both.
+
+   It also CONVERGES. At the start the gradients are stretched over the card's whole
+   edge and barely lit; as the pair closes in, `scaleY` squeezes them toward
+   `--merge-y` while the opacity climbs — so the edge lights up along its length and
+   gathers into a single hot point at the moment of contact, the way a cursor
+   approaching an edge would pull the highlight after it. Scaling DOWN is what makes
+   this safe: the element can never grow past the card's bounds.
+
+   BOXINESS WATCH. A background is clipped to its box, so any stop with alpha left in
+   it at an edge becomes a straight line. Both gradients are centred `at 100%` — on the
+   right edge — so their horizontal radii have to die inside 58px, and the vertical mask
+   has to come back: the bloom is 420px tall against a 300px card, and for the top row
+   the hot spot is only 28px from the card's top, so nothing sized to look right along
+   the edge can also fade out before reaching it. Dropping that mask is what turned the
+   glow into a lit rectangle. It is a static mask over an element that only animates
+   transform and opacity, which the compositor handles.
+
+   `right: -1px` lets it sit ON the border rather than just inside it. */
+.wl-followed__card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  width: 58px;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  /* origin AT the contact point, so scaleY converges on it from both directions */
+  transform-origin: 100% var(--merge-y, 50%);
+  transform: scale(0.5, 1);
+  background:
+    radial-gradient(
+      ellipse 46px 120px at 100% var(--merge-y, 50%),
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.62) 26%,
+      rgba(255, 255, 255, 0.3) 48%,
+      rgba(255, 255, 255, 0.08) 66%,
+      transparent 80%
+    ),
+    radial-gradient(
+      ellipse 56px 420px at 100% var(--merge-y, 50%),
+      rgba(255, 255, 255, 0.52) 0%,
+      rgba(255, 255, 255, 0.3) 30%,
+      rgba(255, 255, 255, 0.13) 54%,
+      rgba(255, 255, 255, 0.04) 74%,
+      transparent 90%
+    );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+}
+
+.wl-followed__card[data-merging="on"]::before {
+  will-change: transform, opacity;
+  animation: wl-edge-glow 980ms cubic-bezier(0.4, 0, 0.5, 1);
+}
+
+/* 40% of 980ms = 392ms: the moment the pair lands (see .wl-follow__acts' return
+   transition). Everything before that is the approach — deliberately back-loaded, so
+   the edge barely stirs while they are still out in the alley and rushes up over the
+   last third, which is what makes the brightness read as proximity. After contact it
+   holds for a beat and then bleeds away under the departing blob. */
+@keyframes wl-edge-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.42, 1.15);
+  }
+  10% {
+    opacity: 0.44;
+    transform: scale(0.55, 1.06);
+  }
+  24% {
+    opacity: 0.62;
+    transform: scale(0.72, 0.78);
+  }
+  34% {
+    opacity: 0.82;
+    transform: scale(0.88, 0.46);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1, 0.24);
+  }
+  58% {
+    opacity: 0.9;
+    transform: scale(1, 0.27);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.84, 0.44);
+  }
+}
+
+/* --- A followed company (picked from the search results) ---------------------
+   Geometry mirrors .wl-skel exactly — 20px tall, same 18px gap — so the rows read
+   as the same list the placeholders were standing in for, and the first one to
+   arrive lands where the first placeholder was. */
+.wl-follow {
+  position: relative; /* the action pair is positioned off this row's right edge */
+  cursor: pointer; /* clicking the row is what opens View / Delete */
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  /* An explicit height, not just min-height: the delete collapse animates it to
+     0 and `height: auto` is not an animatable start value. */
+  height: 20px;
+  flex: 0 0 auto;
+  /* `backwards`, not `both`: the end keyframe is identical to the base style, so
+     `both` would only serve to leave `filter: blur(0)` on the element forever —
+     a permanent compositing layer that costs the text its subpixel antialiasing.
+     `backwards` still pins the from-state before the first frame. */
+  animation: wl-follow-in 440ms cubic-bezier(0.22, 0.9, 0.24, 1) backwards;
+}
+
+/* Bigger logo than the search rows (16px) to match the skeleton thumb it lands
+   on, and it pops in a beat behind the row itself. */
+.wl-follow .wl-row__logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  animation: wl-follow-logo 560ms cubic-bezier(0.2, 1.6, 0.36, 1) 60ms backwards;
+}
+
+/* Rides on .wl-row__name for ink + ellipsis (incl. every theme override); this
+   class only scales it up for the larger right-hand card. Later in the file than
+   .wl-row__name, which is what settles the equal-specificity font-size. */
+.wl-follow__name {
+  font-size: 11px;
+}
+
+.wl-follow__ticker {
+  animation: wl-follow-chip 520ms cubic-bezier(0.22, 0.9, 0.24, 1) backwards;
+}
+
+/* --- The absorption flare -----------------------------------------------------
+   A bloom of light at the card's right edge, thrown the instant the button pair lands
+   back inside it, then drifting left into the card as it dies. It is the visual
+   receipt for the merge: without it the pair just slides under the edge and the
+   moment reads as nothing happening.
+
+   THREE ANIMATIONS, ALL OF THEM transform/opacity ONLY. This matters more than it
+   looks. The first version put the harshness decay on `filter: blur()`, animated 0 →
+   9px; filter animation cannot run on the compositor, so every frame re-rasterised
+   two radial gradients and re-ran a blur, on a page that is already spending its
+   frame budget on a WebGL canvas and a wall of backdrop-filters. That was the jerk.
+   Harshness now decays by CROSS-FADING a hard layer into a soft one, which the
+   compositor can do for free:
+
+     ::before  hard core   — tight stops, full alpha to 24%, cliff, gone by 64%
+     ::after   soft bloom  — long gradual ramp, nothing sharp anywhere
+     the span  the drift   — transform only, carrying both layers left
+
+   The soft layer needs no blur either: a gradient with widely spaced stops IS a soft
+   edge. Blurring one was solving a problem that didn't exist.
+
+   Sits fully INSIDE the card, right edge flush against the border: `left: 100%` is
+   the row's right edge, the border is 16px beyond that, and the element is 40px wide,
+   so −24px lands its right edge exactly on the border. The hard core, at 78% across,
+   falls ~9px inside the edge — right where the edge glow peaks. */
+.wl-follow__spark {
+  /* rgb triple, not a colour, so every stop below can share it */
+  --spark: 255, 255, 255;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  /* Roomy on purpose: every gradient below is sized in px and kept clear of these
+     edges, because a background IS clipped to its box and the shapes would otherwise
+     be cut off — which is exactly what went wrong before (see the note on the core). */
+  width: 72px;
+  height: 64px;
+  /* right edge flush with the card's border: 16px of card padding − 72px of width */
+  margin-left: -56px;
+  margin-top: -32px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.82, 0.78);
+}
+
+/* White light is invisible on the pale cards of the non-glass themes, so those get a
+   dark bloom instead — same gesture, legible ink. (Mirrors --accent-dark; it has to be
+   a triple here, and a hex token can't be split into one.) */
+:root:not([data-theme*="glass"]) .wl-follow__spark {
+  --spark: 20, 31, 56;
+}
+
+/* The hard core. Right-biased and cliff-edged: this is the 100%-harshness layer, and
+   it is what fades out to take the harshness down to 0.
+
+   EXPLICIT RADII, not `closest-side`. That keyword was the bug behind the blob looking
+   chopped: with the centre at 78% of a 40px box, the closest side was the right one,
+   8.8px away — so the "blob" was really a 17px vertical sliver pinned to the edge, and
+   `border-radius: 50%` then clipped what was left of it. Sized in px it is a proper
+   30px core, and it sits 44.6px along a 72px box so its own falloff finishes well
+   inside the right edge. No border-radius: the gradient defines the shape, and a
+   radius here can only clip it. */
+.wl-follow__spark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 26px 27px at 60% 50%,
+    rgba(var(--spark), 1) 0%,
+    rgba(var(--spark), 1) 22%,
+    rgba(var(--spark), 0.82) 36%,
+    rgba(var(--spark), 0.44) 50%,
+    rgba(var(--spark), 0.16) 62%,
+    rgba(var(--spark), 0.04) 74%,
+    transparent 86%
+  );
+}
+
+/* The soft bloom, sitting left of the core and much wider. Every stop is far apart,
+   which is what makes it diffuse without needing a filter. */
+.wl-follow__spark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.34;
+  background: radial-gradient(
+    ellipse 33px 30px at 44% 50%,
+    rgba(var(--spark), 0.52) 0%,
+    rgba(var(--spark), 0.4) 20%,
+    rgba(var(--spark), 0.26) 38%,
+    rgba(var(--spark), 0.13) 56%,
+    rgba(var(--spark), 0.05) 74%,
+    rgba(var(--spark), 0.01) 88%,
+    transparent 96%
+  );
+}
+
+/* One shared clock for all three tracks, started at the same instant as the buttons'
+   return trip — no delay. The blob is already in flight out in the alley, travelling
+   in with them; it is simply invisible until they touch the edge. Holding it back with
+   a 392ms delay and then starting its motion from a standstill is what read as a hitch:
+   the light appeared to lurch into existence rather than arrive.
+
+   46% of 850ms = 391ms, which is the moment of contact (the .wl-follow__acts return
+   transition and the edge glow's peak both land there). */
+.wl-follow--merged .wl-follow__spark,
+.wl-follow--merged .wl-follow__spark::before,
+.wl-follow--merged .wl-follow__spark::after {
+  animation-duration: 850ms;
+  animation-timing-function: linear;
+}
+
+.wl-follow--merged .wl-follow__spark {
+  will-change: transform, opacity;
+  animation-name: wl-spark-drift;
+}
+
+.wl-follow--merged .wl-follow__spark::before {
+  animation-name: wl-spark-core;
+}
+
+.wl-follow--merged .wl-follow__spark::after {
+  animation-name: wl-spark-bloom;
+}
+
+/* Travels in with the buttons, invisible, and switches on as they cross the edge —
+   then keeps going, stretching and dying inside the card. One continuous motion, so
+   there is no standing start to stutter through.
+
+   Per-keyframe `animation-timing-function` matters here: the interval that STARTS at a
+   keyframe uses that keyframe's function. So the approach borrows the buttons' own
+   travel curve, the switch-on is linear, and only the drift inside the card eases out.
+
+   At 42% it is still 8px outside the border, but at zero opacity; by the time it is
+   visible at 46% it is flush with the edge. */
+@keyframes wl-spark-drift {
+  0% {
+    opacity: 0;
+    transform: translateX(96px) scale(0.72, 0.76);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.6, 1);
+  }
+  42% {
+    opacity: 0;
+    transform: translateX(8px) scale(0.96, 0.97);
+  }
+  46% {
+    opacity: 1;
+    transform: translateX(0) scale(1, 1);
+    animation-timing-function: cubic-bezier(0.22, 0.62, 0.24, 1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-36px) scale(1.44, 0.8);
+  }
+}
+
+/* Harshness, 100% → 0%. Both tracks idle at their arrival values through the approach
+   (nothing is visible then anyway — the container is at zero opacity) and only start
+   trading places once the blob is inside the card. */
+@keyframes wl-spark-core {
+  0%,
+  46% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 0.14;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ...and the diffuse layer takes over as it goes, so the blob softens rather than
+   simply dimming. */
+@keyframes wl-spark-bloom {
+  0%,
+  46% {
+    opacity: 0.34;
+  }
+  72% {
+    opacity: 0.78;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* --- View / Delete: they de-merge OUT of the card ----------------------------
+   Same gesture as the chat cards' copy/share pair (see .msg__actions in
+   ChatPanel.css): the buttons sit INSIDE the card while at rest, fused into its
+   glass, then slide clear of its right edge while their own glass grows in around
+   the icon. In Liquid Glass Pro the WebGL layer draws that glass and smooth-min
+   unions it with the card, so a liquid neck stretches and snaps as they separate.
+
+   `left: 100%` is the row's right edge, which is the card's right padding edge —
+   the card's border sits 16px further right (its padding). So:
+     merged   → translateX(-58px): the pair is 13px inside the card's border
+     revealed → translateX(28px):  16px of padding + a 12px alley = clear of it
+   86px of travel, against the chat pair's 74px. Vertically centred on the row via
+   top/bottom + align-items, so the 28px buttons overhang the 20px row by 4px
+   symmetrically — inside the card's 10px row gap, and only one row is ever
+   revealed at a time anyway. */
+.wl-follow__acts {
+  position: absolute;
+  left: 100%;
+  /* −4px so the corridor below is as tall as the 28px buttons, not just the row */
+  top: -4px;
+  bottom: -4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* CURSOR CORRIDOR. The buttons sit well outside the card, but the close timer is
+     driven by mouseleave on the ROW — and that fires on the DOM tree, not on
+     geometry. So this element's own box bridges the gap: 42px of padding (the card's
+     16px of padding + the 26px alley) puts its left edge flush against the row's
+     right edge while the buttons sit past the card, giving one continuous hit area.
+     Without it, the close timer would start the moment the cursor left the row and
+     the pair would often merge back on the way over. */
+  padding-left: 42px;
+  /* ...and the bridge must NOT be hit-testable while parked, or it would swallow
+     hover over the row's own name. Only the revealed state turns it on. */
+  pointer-events: none;
+  transform: translateX(-104px);
+  /* The return trip. It used to be a 140ms snap, but the edge glow now ramps across
+     exactly this interval (40% of wl-edge-glow's 980ms = 392ms) and a ramp that short
+     is not a ramp, it is a flicker. Eased so the pair accelerates into the card. */
+  transition: transform 0.392s cubic-bezier(0.42, 0, 0.6, 1);
+}
+
+/* The travel itself: 104px, against the chat pair's 74px. Duration is the one place
+   this deliberately departs from them — theirs is a one-shot 2.4s reveal, and 2.4s
+   would be far too long for something opened by a click and closed 0.9s after the
+   cursor leaves. So it borrows the easing and not the clock, at a velocity
+   matched to the shorter 86px version this replaces. */
+.wl-follow--acts .wl-follow__acts,
+.wl-follow:focus-within .wl-follow__acts {
+  transform: translateX(0);
+  pointer-events: auto;
+  transition: transform 0.7s var(--btn-split-ease, cubic-bezier(0.32, 0, 0.18, 1));
+}
+
+/* The BUTTON is only a transparent box holding an icon; the glass is the separate
+   .wl-act__glass beside it. That split does three jobs at once: the hover wobble
+   can deform the glass without dragging the icon with it, the glass can grow in as
+   the button separates from the card, and GlassLayer gets an element to track and
+   strip that isn't the one carrying the icon.
+
+   NOTE: opacity lives on each BUTTON, never on the .wl-follow__acts wrapper.
+   GlassLayer reads each candidate element's OWN computed opacity and skips anything
+   under 0.04 — which is exactly what keeps the four un-hovered rows' parked buttons
+   from being tracked as glass blobs sitting inside the card. A wrapper at 0 would
+   leave them all reporting 1. */
+.wl-act {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--accent-dark);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  /* Held visible for most of the return trip and only snuffed over its last 90ms, as
+     they cross the card's edge — fading them out early would leave the edge glow
+     brightening toward nothing. */
+  transition: opacity 0.09s linear 0.3s;
+}
+
+/* The glass disc. Fill and ink come from the ticker chip's own tokens
+   (`--accent-thumb` / `--accent-dark`), so these read correctly on every theme — a
+   translucent pane over the photo in the glass themes, a light accent tint on the
+   plain ones — without a single per-theme override. The fill is cut to 45% of that
+   token so the blur behind it does the work instead of the paint.
+
+   In Liquid Glass Pro none of this paint survives: GlassLayer tags the element
+   `.lg-webgl-active` every frame, nulling background / border-color / box-shadow /
+   backdrop-filter with !important, and the shader draws the glass instead — merged
+   into the card. The `transform` below still applies, and because the layer re-reads
+   getBoundingClientRect every frame, the grow-in and the wobble deform the WebGL
+   glass too.
+
+   `background-image` for the sheen and `background-color` for the fill, kept
+   separate on purpose: hover changes only the colour, so it can't wipe out the
+   gradients. The sheen is a hard highlight across the upper-left shoulder plus a
+   faint bounce off the lower edge — the two things that make a disc read as a lens
+   rather than a flat translucent dot. */
+.wl-act__glass {
+  position: absolute;
+  inset: 0;
+  border: 0.5px solid rgba(255, 255, 255, 0.62);
+  border-radius: 50%;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--accent-thumb) 45%, transparent);
+  background-image:
+    linear-gradient(
+      152deg,
+      rgba(255, 255, 255, 0.8) 0%,
+      rgba(255, 255, 255, 0.16) 36%,
+      transparent 56%
+    ),
+    radial-gradient(
+      120% 88% at 50% 122%,
+      rgba(255, 255, 255, 0.5) 0%,
+      transparent 60%
+    );
+  -webkit-backdrop-filter: blur(11px) saturate(1.9) brightness(1.06);
+  backdrop-filter: blur(11px) saturate(1.9) brightness(1.06);
+  /* Rim light around the whole circle (a 0.5px inset spread reads as a thin
+     meniscus on a 28px disc), a bright top edge, a darker bottom edge for
+     thickness, and a soft cast shadow to lift it off the card. */
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -1px 1.5px rgba(0, 0, 0, 0.12),
+    0 2px 6px -2px rgba(0, 0, 0, 0.32);
+  /* Grows in around the icon as the button leaves the card, the way the chat pair's
+     circle does (.msg__fg .msg__act::before in ChatPanel.css): while merged it is a
+     dot, and it only becomes a button once it has separated. */
+  transform: scale(0.72);
+  transition:
+    transform 0.392s cubic-bezier(0.42, 0, 0.6, 1),
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+/* Positioned so it paints above the glass (same z-index, later in tree order).
+   16px in a 28px disc leaves a 6px margin all round. */
+.wl-act svg {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+}
+
+.wl-follow--acts .wl-act,
+.wl-follow:focus-within .wl-act {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.34s ease;
+}
+
+/* Trails the travel slightly, so the glass is still filling out as the pair clears
+   the card's edge instead of arriving fully formed. */
+.wl-follow--acts .wl-act__glass,
+.wl-follow:focus-within .wl-act__glass {
+  transform: scale(1);
+  transition:
+    transform 0.62s cubic-bezier(0.33, 0, 0.2, 1) 0.06s,
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+/* Stagger on the way IN only — the eye leads, the bin follows. Deliberately not
+   mirrored on exit: the ask was that they go the instant the cursor leaves. */
+.wl-follow--acts .wl-act--del,
+.wl-follow:focus-within .wl-act--del {
+  transition-delay: 0.07s;
+}
+
+/* Wobble on hover — on the SURFACE only, so the icon inside doesn't budge. One
+   shot per hover: the keyframes end back at scale(1), which is the revealed glass's
+   resting transform, so nothing is left stranded when it finishes.
+
+   Hover also brightens the glass rather than filling it in — the fill only goes
+   from 45% to 60% of the token, and the rim and cast shadow carry the rest. */
+.wl-act:hover .wl-act__glass {
+  animation: wl-act-wobble 520ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  background-color: color-mix(in srgb, var(--accent-thumb) 60%, transparent);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.55),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1.5px rgba(0, 0, 0, 0.14),
+    0 4px 10px -3px rgba(0, 0, 0, 0.38);
+}
+
+/* Squash on press. This one IS on the button — a press should take the icon with
+   it — and it stops the surface wobble so a click mid-animation still reads. */
+.wl-act:active {
+  transform: scale(0.9);
+}
+
+.wl-act:active .wl-act__glass {
+  animation: none;
+}
+
+/* Destructive action earns a red tint, but only under the cursor — kept under 50%
+   so it stays a tinted lens rather than a solid red dot. */
+.wl-act--del:hover {
+  color: #ffffff;
+}
+
+.wl-act--del:hover .wl-act__glass {
+  background-color: rgba(214, 66, 66, 0.46);
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+/* Squash-and-stretch, so it reads as a soft body rather than a rotating box — now
+   a ~3% deformation and a ~1° tilt, which on a 28px disc is still under a pixel of
+   travel. Keeping all four beats at that amplitude, rather than one bigger one, is
+   what still reads as something settling instead of a single nudge. */
+@keyframes wl-act-wobble {
+  0% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+  20% {
+    transform: scale(1.03, 0.975) rotate(-1deg);
+  }
+  42% {
+    transform: scale(0.985, 1.02) rotate(0.8deg);
+  }
+  63% {
+    transform: scale(1.012, 0.993) rotate(-0.4deg);
+  }
+  82% {
+    transform: scale(0.997, 1.005) rotate(0.2deg);
+  }
+  100% {
+    transform: scale(1, 1) rotate(0deg);
+  }
+}
+
+/* Delete: collapse the row so the rows below slide up instead of jumping. The
+   negative margin cancels the card's 10px flex gap, which a height of 0 alone
+   would leave behind as a stranded 10px hole. */
+.wl-follow--out {
+  overflow: hidden;
+  pointer-events: none;
+  animation: wl-follow-out 260ms cubic-bezier(0.4, 0, 0.7, 0.4) forwards;
+}
+
+@keyframes wl-follow-out {
+  from {
+    opacity: 1;
+    height: 20px;
+    margin-bottom: 0;
+    transform: none;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    height: 0;
+    margin-bottom: -10px;
+    transform: translateX(-12px);
+    filter: blur(3px);
+  }
+}
+
+@keyframes wl-follow-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.99);
+    filter: blur(2.5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes wl-follow-logo {
+  from {
+    opacity: 0;
+    transform: scale(0.55) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The hold to 26% is the stagger — a delay would need `backwards` to cover it
+   anyway, and this keeps the chip's arrival inside the row's own 440ms. */
+@keyframes wl-follow-chip {
+  0%,
+  26% {
+    opacity: 0;
+    transform: translateX(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Re-clicking an already-followed company: nudge its row so the click lands.
+   Overrides the entrance animation above by source order, which is correct —
+   this only ever applies to a row that is already on screen. */
+.wl-follow--bump {
+  animation: wl-follow-bump 700ms cubic-bezier(0.3, 1, 0.3, 1);
+}
+
+@keyframes wl-follow-bump {
+  0% {
+    transform: none;
+  }
+  24% {
+    transform: translateX(5px) scale(1.015);
+  }
+  to {
+    transform: none;
+  }
 }
 
 .wl-skel {
   display: flex;
   align-items: center;
   gap: 18px;
+}
+
+/* Loading scaffolding on its way out: the first followed company clears the lot.
+   `forwards` holds the faded state for the ~220ms until React unmounts them, so
+   they can't flash back to full opacity on the last frame. */
+.wl-skel--out {
+  pointer-events: none;
+  animation: wl-skel-out 200ms ease forwards;
+}
+
+@keyframes wl-skel-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+    filter: blur(2px);
+  }
 }
 
 .wl-skel__thumb {
@@ -274,6 +972,66 @@
   height: 19px;
   border-radius: 2px;
   background: var(--accent-thumb);
+}
+
+/* Someone who has asked for less motion still needs to SEE the company arrive —
+   drop the travel, the scale and the blur, keep a short fade. */
+@media (prefers-reduced-motion: reduce) {
+  .wl-follow,
+  .wl-follow .wl-row__logo,
+  .wl-follow__ticker {
+    animation: wl-follow-fade 180ms linear backwards;
+  }
+  .wl-follow--bump,
+  .wl-act:hover .wl-act__glass {
+    animation: none;
+  }
+  /* The buttons still appear, they just don't travel or grow in: the pair sits
+     straight out in its revealed position and fades. */
+  .wl-follow__acts,
+  .wl-follow--acts .wl-follow__acts,
+  .wl-follow:focus-within .wl-follow__acts {
+    transform: translateX(0);
+    transition: none;
+  }
+  .wl-act,
+  .wl-follow--acts .wl-act,
+  .wl-follow:focus-within .wl-act {
+    transition: opacity 0.12s linear;
+    transition-delay: 0s;
+  }
+  .wl-act__glass,
+  .wl-follow--acts .wl-act__glass,
+  .wl-follow:focus-within .wl-act__glass {
+    transform: none;
+    transition: none;
+  }
+  .wl-follow--acts .wl-act--del,
+  .wl-follow:focus-within .wl-act--del {
+    transition-delay: 0s;
+  }
+  /* No approach ramp, no flare — the rules above already killed the travel that the
+     ramp was timed against. */
+  .wl-follow--merged .wl-follow__spark,
+  .wl-follow--merged .wl-follow__spark::before,
+  .wl-follow--merged .wl-follow__spark::after,
+  .wl-followed__card[data-merging="on"]::before {
+    animation: none;
+  }
+  /* Both of these are only cosmetic — a JS timer owns the actual removal. */
+  .wl-follow--out,
+  .wl-skel--out {
+    animation: none;
+    opacity: 0;
+  }
+  @keyframes wl-follow-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
 
 /* --- Responsive --- */

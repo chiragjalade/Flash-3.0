@@ -21,6 +21,9 @@ const SELECTOR =
   ".lg-glass, .prompt:not(.prompt--dock), " +
   ".rdesk-card, .rdesk__spot-card, .rdesk__news-card, " +
   ".wl-results, .wl-followed__card, .wl-searchbox, .clock-widget__card, .clock-widget__mini, .theme-pop, " +
+  // watchlist row actions → glass discs that neck OUT of the followed card, the
+  // same gesture as .msg__act leaving an answer card
+  ".wl-act__glass, " +
   // answer text card + chart cards + action buttons → real WebGL glass that fuses/necks
   ".msg__content, .skel--chart, .msg__act, " +
   // user-sent bubble → WebGL glass too (standalone, not mergeable)
@@ -357,14 +360,19 @@ export default function GlassLayer({ config }: { config: LConfig }) {
     const merge = new Float32Array(MAX);
     const tint = new Float32Array(MAX);
     // Surfaces that carry the black→transparent tint baked into the glass (the
-    // answer text card + chart cards). Rendered in the shader UNDER the rim so the
-    // hover/edge highlight stays on top consistently (see tintAt / u_tint).
-    const TINT_SELECTOR = ".msg__content, .skel--chart";
+    // answer text card + chart cards, and the watchlist cards). Rendered in the
+    // shader UNDER the rim so the hover/edge highlight stays on top consistently
+    // (see tintAt / u_tint).
+    const TINT_SELECTOR =
+      ".msg__content, .skel--chart, .wl-results, .wl-followed__card";
     // Only the movable element(s) merge — the draggable clock. Everything else is
     // static and keeps hard, separate edges. Add selectors here for any other
     // element that should grow a liquid neck as it approaches its neighbours.
     const MERGE_SELECTOR =
-      ".clock-widget__card, .clock-widget__mini, .msg__content, .skel--chart, .msg__act";
+      ".clock-widget__card, .clock-widget__mini, .msg__content, .skel--chart, .msg__act, " +
+      // parked inside the followed card and slid out on hover: mergeable, so the
+      // static card grows a neck toward it at u_k and snaps as it clears the edge
+      ".wl-act__glass";
     let raf = 0;
     let bgBlur = 0; // eased background-photo frost (px); ramps in the chat convo
     // Parallax: the photo is zoomed BG_ZOOM by default, and slowly drifts (a
