@@ -269,7 +269,7 @@ export default function SearchPalette({
         wrap.clientHeight -
         parseFloat(style.paddingTop) -
         parseFloat(style.paddingBottom) -
-        54; // bar (40) + panel gap (14)
+        62; // bar (46) + panel gap (16)
       const foot = footRef.current?.offsetHeight ?? 0;
       /* Measure the UNCONSTRAINED wrapper, not .spal__scroll: a scroll container's
          scrollHeight never reports less than its own clientHeight, so measuring it

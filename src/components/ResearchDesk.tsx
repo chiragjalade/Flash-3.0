@@ -11,6 +11,7 @@ import {
   fetchSpotlightNews,
   type NewsArticle,
 } from "../services/news";
+import { isGlassTheme } from "../lib/theme";
 import Treemap, { trackedCompanies } from "./Treemap";
 import "./ResearchDesk.css";
 
@@ -130,6 +131,10 @@ const fallbackPosts: NewsArticle[] = [0, 1, 2, 3].map((i) => ({
 // Wraps a card so it tilts and drifts subtly toward the cursor while hovered
 // (the whole card reacts to mouse movement), easing back to rest on leave via
 // CSS. Kept gentle: a small tilt plus a very small x/y translate.
+//
+// The tilt is a glass-theme effect (see isGlassTheme); on the flat themes the
+// card stays square to the page and only the press scale survives, since that is
+// click feedback rather than a hover flourish.
 function TiltCard({
   className,
   children,
@@ -155,6 +160,10 @@ function TiltCard({
       return;
     }
     const s = pressed ? 0.955 : 1; // press → subtle scale-down
+    if (!isGlassTheme()) {
+      el.style.transform = pressed ? `scale(${s})` : "";
+      return;
+    }
     el.style.transform =
       `perspective(1200px) rotateX(${(-ny * maxTilt).toFixed(2)}deg) rotateY(${(nx * maxTilt).toFixed(2)}deg)` +
       ` translate3d(${(nx * maxShift).toFixed(2)}px, ${(ny * maxShift).toFixed(2)}px, 0) scale(${s})`;

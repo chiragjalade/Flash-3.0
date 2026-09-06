@@ -74,6 +74,8 @@ type LgMode = "in" | "out";
 
 export default function ClockWidget({ theme }: { theme: string }) {
   const lg = theme === "liquid-glass";
+  // The hover tilt is a glass-theme effect; the flat themes leave the card square.
+  const glassy = theme.includes("glass");
   // Liquid-glass merge state (see LgMode). Starts merged IN, then auto-demerges;
   // clicking the button (or clock) toggles. Other themes ignore it / use collapsed.
   const [mode, setMode] = useState<LgMode>(lg ? "in" : "out");
@@ -194,7 +196,7 @@ export default function ClockWidget({ theme }: { theme: string }) {
     tilt: number,
     shift: number,
   ) => {
-    if (!el) return;
+    if (!el || !glassy) return;
     const r = el.getBoundingClientRect();
     const clamp = (n: number) => Math.max(-1, Math.min(1, n));
     const nx = clamp((e.clientX - (r.left + r.width / 2)) / (r.width / 2));

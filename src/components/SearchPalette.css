@@ -71,7 +71,7 @@
   max-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 /* ---- entrance choreography ------------------------------------------------
@@ -192,9 +192,9 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 9px;
-  height: 40px;
-  padding: 0 11px;
+  gap: 11px;
+  height: 46px;
+  padding: 0 14px;
   background: var(--color-chip-bg, #fff);
   border: 1px solid var(--color-border);
   /* Tighter than the body's 14px on purpose — the bar is short, so the same
@@ -296,7 +296,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 11px 0;
+  padding: 15px 0;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
 }
@@ -309,10 +309,10 @@
 }
 
 .spal__sec {
-  padding: 0 13px;
+  padding: 0 16px;
 }
 .spal__sec-label {
-  margin: 0 0 7px;
+  margin: 0 0 10px;
   font-family: var(--font-ui);
   font-weight: 500;
   font-size: 10px;
@@ -324,7 +324,7 @@
 /* Figma 1067:2643/2644 — the two divider lines between sections */
 .spal__rule {
   height: 1px;
-  margin: 11px 13px;
+  margin: 15px 16px;
   background: var(--color-border);
   opacity: 0.75;
 }
@@ -333,14 +333,14 @@
 .spal__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
 }
 .spal__chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 19px;
-  padding: 0 8px;
+  height: 21px;
+  padding: 0 9px;
   border: 0.8px solid var(--color-chip-border);
   border-radius: 999px;
   background: transparent;
@@ -372,7 +372,7 @@
 .spal__rows {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 .spal__row {
   display: flex;
@@ -380,8 +380,8 @@
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  height: 38px;
-  padding: 0 10px;
+  height: 42px;
+  padding: 0 12px;
   border: 0.8px solid transparent;
   border-radius: 7px;
   background: transparent;
@@ -430,8 +430,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 30px;
-  padding: 0 12px;
+  height: 36px;
+  padding: 0 14px;
   border-top: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-text) 3%, transparent);
 }

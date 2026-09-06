@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { searchCompanies, type Company } from "../lib/companySearch";
+import { isGlassTheme } from "../lib/theme";
 import "./WatchlistPage.css";
 
 // Real brand logo with a graceful fallback: renders the company's verified logo
@@ -89,11 +90,12 @@ export default function WatchlistPage() {
   }, [query]);
 
   // Subtle cursor-reactive tilt + translate on the Followed Companies card.
+  // Glass themes only — see isGlassTheme.
   const cardRef = useRef<HTMLDivElement>(null);
   const tiltRaf = useRef(0);
   const onCardMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const el = cardRef.current;
-    if (!el) return;
+    if (!el || !isGlassTheme()) return;
     const r = el.getBoundingClientRect();
     const nx = ((e.clientX - r.left) / r.width) * 2 - 1; // -1..1
     const ny = ((e.clientY - r.top) / r.height) * 2 - 1; // -1..1
