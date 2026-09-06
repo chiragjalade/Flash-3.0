@@ -1,0 +1,15 @@
+/* Light coming off the crystal, laid over the clock.
+
+   `screen` rather than normal alpha: a highlight adds light to what is behind it,
+   it does not replace it — the dial's numerals stay legible through the bright
+   part instead of being painted over. .clock-case carries a filter, which makes it
+   a stacking context, so the blend is contained to the clock. */
+.clock-glow {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}

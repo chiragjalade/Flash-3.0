@@ -1,0 +1,325 @@
+/* Hero: the QuantHive lockup in liquid metal on a near-white ground.
+   Shader lives in src/shaders/liquidMetal.ts, mask pipeline in src/lib/heroMask.ts. */
+
+.hero {
+  --hero-bg: #f0f0ef; /* light grey, a step off white */
+  --hero-caption: #8b8b87;
+  /* Named so .hero__grid can cancel it and bleed out to the border box. */
+  --hero-pad: clamp(24px, 6vw, 80px);
+  /* Grid: a light grey a couple of steps darker than the ground. Any closer to the
+     background and it stops reading at all — this is the one dial for that. */
+  --hero-grid-line: #d7d7d4;
+  /* Whole pixels, deliberately not a vw expression. A fractional pitch (5.4vw =
+     77.76px at 1440) puts every 1px line across two device pixels, and the
+     antialiasing halves its weight — the grid then renders visibly lighter than
+     --hero-grid-line actually specifies, so darkening the colour barely shows. */
+  --hero-grid-cell: 52px;
+  --hero-grid-line-w: 2px;
+  /* How far the hero's contents pull back while the menu is down. The edge motifs
+     match it from their own layer (--motif-recess in EdgeMotifs.css); they are no
+     longer inside this section, so they can't read this one. */
+  --hero-recess: 0.94;
+  /* Bundler-relative, not the /icons runtime route Hero.tsx loads the same file
+     from: Bun resolves CSS url() at build time, so an absolute path fails to
+     resolve (same reason the palette's mask icons are written this way). */
+  --hero-lockup: url("../assets/icons/quanthive-lockup.svg");
+
+  min-height: 100dvh;
+  display: grid;
+  /* An explicit 1fr column, not the implicit `auto` one. With `auto`, the column is
+     sized to its item's max-content contribution — which the caption dominates at
+     roughly 420px on one line — and .hero__inner's `width: 100%` then resolves
+     against THAT rather than the viewport. The lockup came out stuck at ~420px on
+     a 1920px screen while simultaneously overflowing a 390px one. 1fr makes the
+     column definite and independent of its content, so the percentage resolves
+     against the real available width. */
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  background: transparent;
+  /* Contains the grid's z-index, so it sits behind the lockup without reaching past
+     the hero into anything else that might later share the page. */
+  position: relative;
+  /* Deliberately NOT a stacking context — no z-index, no isolation. The grid has to
+     paint *below* the fixed .motifs layer (which sits at z-index 0 in the root)
+     while the lockup paints above it. Interleaving a fixed layer with two children
+     of this section is only possible if those children take part in the root
+     stacking context, so .hero must not contain them. */
+}
+
+/* The page ground has to match, or an overscroll bounce flashes the old app's
+   colour behind the hero.
+
+   The doubled selectors are deliberate. main.tsx imports App (and so, transitively,
+   this file) BEFORE styles/global.css, which sets `html, body { background: ... }`
+   at specificity 0,0,1 — so at equal specificity global.css wins on order. Bundlers
+   are also free to reorder the two, which has bitten this codebase before, so these
+   win on specificity (0,0,2) instead of relying on order at all. */
+:root:root {
+  background: #f0f0ef;
+  /* Smooth for anchor jumps and keyboard paging. Wheel and trackpad scrolling is
+     unaffected by this — the clock's own easing is what smooths those. */
+  scroll-behavior: smooth;
+}
+/* Transparent on purpose, and it must stay that way. The ground is painted by the
+   html background, which propagates to the canvas and so sits under everything. A
+   background on BODY instead would paint in the block-backgrounds step, which comes
+   AFTER negative z-index children — and that would bury .hero__grid. This rule
+   exists to override global.css's `html, body` background, not to add one. */
+:root body {
+  background: transparent;
+}
+
+/* global.css pins html, body and #root to height: 100%, which was right when the
+   hero was the whole page. There is a second section below it now, so they need to
+   be free to grow. Same doubled-selector reason as above: this file is bundled
+   before global.css, so it has to win on specificity rather than order. */
+:root:root,
+:root body,
+:root #root {
+  height: auto;
+  min-height: 100%;
+}
+
+.hero__inner {
+  --lockup-aspect: 4.977; /* 13266 / 2665.401, the padded lockup viewBox */
+
+  position: relative;
+  z-index: 1; /* above .hero__grid */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(20px, 2.6vw, 36px);
+
+  /* Width-led, but never so wide that the lockup outgrows a short viewport. The
+     reserve covers the page's own padding (up to 160px for the pair) plus the gap
+     and the caption; the floor keeps the expression from collapsing on a viewport
+     shorter than the reserve itself. */
+  width: min(1080px, calc(100% - 2 * var(--hero-pad)));
+  max-width: max(260px, calc((100dvh - 250px) * var(--lockup-aspect)));
+}
+
+.hero__lockup {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 13266 / 2665.401;
+}
+
+/* No WebGL2, or the shader/artwork failed to load: a static brushed-steel gradient
+   clipped to the same lockup. Flat next to the real thing, but it keeps the hero
+   legible instead of blank. */
+.hero__lockup[data-metal="off"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    170deg,
+    #6d727a 0%,
+    #c6cbd1 13%,
+    #54585e 29%,
+    #edf0f3 45%,
+    #7c828a 57%,
+    #4a4e54 71%,
+    #b8bdc4 85%,
+    #5d6167 100%
+  );
+  -webkit-mask-image: var(--hero-lockup);
+  mask-image: var(--hero-lockup);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* The mark is pixels in a canvas, so the name has to be in the DOM for it to have
+   one. Clipped rather than `display: none` so screen readers still reach it. */
+.hero__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hero__sub {
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+  font-size: clamp(10.5px, 1.05vw, 14px);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--hero-caption);
+  text-align: center;
+  text-wrap: balance;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* --- Grid, rising out of the bottom edge -------------------------------------
+   Two repeating gradients rather than an SVG tile: one pass of 1px lines each way,
+   so cell size stays a single length to tune and the lines land on device pixels
+   instead of being resampled from a bitmap.
+
+   `inset: auto 0 0 0` works here only because .hero carries NO padding — the page
+   inset lives on .hero__inner's width instead. An absolutely positioned child is
+   laid out against its container's PADDING box, so with padding on .hero this had
+   to be negative --hero-pad to reach the border box, and that dragged the grid's
+   origin onto a fractional pixel at any width where 6vw isn't whole, blurring every
+   vertical line. Zero insets keep the origin integral at every viewport size. */
+.hero__grid {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: clamp(200px, 40dvh, 460px);
+  /* Negative, so it lands under the motif layer. It still clears the page ground,
+     which is painted by html/body rather than by any positioned element. */
+  z-index: -1;
+  pointer-events: none; /* the lockup's pointermove drives the specular */
+
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--hero-grid-line) 0 var(--hero-grid-line-w),
+      transparent var(--hero-grid-line-w) var(--hero-grid-cell)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--hero-grid-line) 0 var(--hero-grid-line-w),
+      transparent var(--hero-grid-line-w) var(--hero-grid-cell)
+    );
+
+  /* Transparent at the top, opaque at the bottom — but the boundary DIPS in the
+     middle, so the grid surfaces much lower at the horizontal centre than it does
+     at the sides.
+
+     That dip is why this is a radial gradient and not a `to bottom` linear one. A
+     linear ramp's iso-alpha lines are horizontal by definition, and no combination
+     of a vertical ramp with a horizontal one can bend them — compositing two masks
+     attenuates alpha, it cannot shift the height at which the ramp starts. Centring
+     an ellipse ABOVE the band does bend them: distance from that centre grows both
+     downward and outward, so every iso-line sits at its lowest directly under the
+     centre and rises toward the edges. One mask layer, no mask-composite.
+
+     Stop positions are percentages of the ellipse radius, so they read as distances
+     rather than heights. The geometry is deliberately self-similar: the horizontal
+     term is always (0.5 / 0.62) of a radius regardless of viewport width, so the
+     dip keeps its shape from 320px to 1920px instead of flattening out on wide
+     screens. Half-opacity lands around 0.56 of the band's height at the edges and
+     0.96 at the centre. */
+  -webkit-mask-image: radial-gradient(
+    ellipse 62% 125% at 50% -50%,
+    transparent 42%,
+    transparent 80%,
+    rgba(0, 0, 0, 0.1) 92%,
+    rgba(0, 0, 0, 0.34) 104%,
+    rgba(0, 0, 0, 0.7) 116%,
+    #000 124%
+  );
+  mask-image: radial-gradient(
+    ellipse 62% 125% at 50% -50%,
+    transparent 42%,
+    transparent 80%,
+    rgba(0, 0, 0, 0.1) 92%,
+    rgba(0, 0, 0, 0.34) 104%,
+    rgba(0, 0, 0, 0.7) 116%,
+    #000 124%
+  );
+}
+
+/* Bigger cells once there is room for them, still whole pixels. */
+@media (min-width: 700px) {
+  .hero {
+    --hero-grid-cell: 76px;
+  }
+}
+
+/* --- Recessed while the menu is down ----------------------------------------
+   The lockup and the caption each scale about their OWN centre, so both shrink in
+   place and the gap between them is unchanged — they read as receding from the
+   viewer rather than as a group being pulled together.
+
+   Note the pointer handler in Hero.tsx still measures with getBoundingClientRect,
+   which is correct there (it wants the transformed, on-screen box so the specular
+   tracks where the lockup actually is); the canvas backing store is sized from
+   offsetWidth instead, which transforms don't touch. */
+.hero__lockup,
+.hero__sub {
+  transform-origin: 50% 50%;
+  /* Closing: come back a touch faster and without the delay, so the lockup is
+     already settling as the panel collapses. */
+  transition: transform 0.5s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+
+
+.hero[data-recessed] .hero__lockup,
+.hero[data-recessed] .hero__sub {
+  transform: scale(var(--hero-recess));
+  /* Opening: a beat behind the panel's fill, so the recession reads as caused by
+     the menu coming down rather than as a simultaneous, separate animation. */
+  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.24, 1) 0.04s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__lockup,
+  .hero__sub,
+  .hero[data-recessed] .hero__lockup,
+  .hero[data-recessed] .hero__sub {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+}
+
+
+/* --- Entrance ----------------------------------------------------------------
+   One shot, on load: the lockup resolves out of a larger, blurred ghost of itself
+   down onto its final size, and the caption follows it up. (The edge motifs have
+   their own entrance, in EdgeMotifs.css, since they no longer live in this
+   section.)
+
+   Both sets below declare only `from`. The implicit 100% keyframe is the element's
+   own computed value, so each rest state — including the recessed variant, if the
+   menu is opened mid-entrance — stays defined in exactly one place instead of being
+   copied into an animation end state that could then fall out of sync.
+
+   Fill is `backwards`, never `forwards` or `both`. The lockup animates `filter`,
+   and a filter that stays applied — blur(0) very much included — keeps a
+   compositing layer alive for the life of the page and costs subpixel antialiasing
+   on the type under it. Ending with no fill drops back to the clean base style,
+   which is already the intended final state. */
+
+@keyframes hero-lockup-in {
+  from {
+    opacity: 0;
+    transform: scale(1.14);
+    filter: blur(18px);
+  }
+  /* Explicit, so the blur resolves to a real zero rather than relying on
+     interpolation toward an absent filter list. */
+  to {
+    filter: blur(0);
+  }
+}
+
+@keyframes hero-sub-in {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+}
+
+.hero__lockup {
+  animation: hero-lockup-in 1.2s cubic-bezier(0.2, 0.68, 0.2, 1) 0.12s backwards;
+}
+
+.hero__sub {
+  animation: hero-sub-in 0.8s ease-out 0.66s backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__lockup,
+  .hero__sub {
+    animation: none;
+  }
+}

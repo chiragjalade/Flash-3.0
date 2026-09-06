@@ -1,0 +1,72 @@
+.clk {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Angles are seeded here so the face is drawn at a plausible time on the very
+     first paint, before the effect has run. */
+  --clk-h: 0deg;
+  --clk-m: 0deg;
+  --clk-s: 0deg;
+}
+
+/* The window reflection tracks the pointer. view-box units so the offsets are in
+   the same 1000-unit space as everything else on the dial. */
+.clk__spec {
+  transform-box: view-box;
+  transform: translate(
+    calc(var(--clk-gx, 0) * 1px),
+    calc(var(--clk-gy, 0) * 1px)
+  );
+}
+
+.clk__hand {
+  /* view-box, not the default border-box: the hands are children of the <svg>, so
+     their rotation origin has to be expressed in viewBox units to land on the
+     dial's centre. */
+  transform-box: view-box;
+  transform-origin: 500px 500px;
+}
+
+.clk__hand--hour {
+  transform: rotate(var(--clk-h));
+}
+
+.clk__hand--min {
+  transform: rotate(var(--clk-m));
+}
+
+.clk__hand--sec {
+  transform: rotate(var(--clk-s));
+}
+
+.clk__hours,
+.clk__minlabels,
+.clk__brand {
+  font-family: "PT Serif", Georgia, serif;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.clk__hours {
+  font-size: 92px;
+  /* Tightens the pairs in 10, 11 and 12. In em so it tracks the size, and modest
+     on purpose: letter-spacing is added after the LAST glyph too, which shifts
+     text-anchor="middle" by half a step — and by a full step on the two-digit
+     numerals. At this value that asymmetry is about 2.5 of the dial's 1000 units,
+     well under a pixel at any size the clock is drawn. Going much further would
+     start to pull the two-digit numerals off their radial positions. */
+  letter-spacing: -0.055em;
+}
+
+.clk__minlabels {
+  font-size: 27px;
+}
+
+.clk__brand {
+  font-size: 26px;
+  letter-spacing: 6px;
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+}
+
+/* No reduced-motion rule on the hands: they are a readout of the actual time, not
+   decoration, and freezing them would make the clock wrong rather than calmer. */

@@ -1,0 +1,314 @@
+/* Floating navbar that morphs into its own dropdown.
+   Closed: a transparent bar. Open: the same rectangle takes a light-grey fill and
+   grows downward out of its bottom edge, with the page blurred behind it. */
+
+.nav {
+  --nav-gutter: clamp(16px, 4vw, 40px);
+  /* Closed palette: dark ink on a transparent bar over the light page. Every
+     colour here is a variable so [data-open] can invert the whole scheme in one
+     block instead of restating a rule per element. */
+  --nav-fill: transparent;
+  --nav-border: transparent;
+  --nav-ink: #3a3a38;
+  --nav-ink-soft: #85857f;
+  --nav-hover: rgba(0, 0, 0, 0.05);
+  --nav-rule: rgba(0, 0, 0, 0.06);
+  --nav-bar-h: 52px;
+  /* Bundler-relative, like the hero's copy: Bun resolves CSS url() at build time. */
+  --nav-motif-art: url("../assets/icons/hero-motif.svg");
+
+  position: fixed;
+  top: clamp(16px, 2.6vw, 28px);
+  /* Centred with auto margins rather than translateX(-50%): a transform would make
+     .nav a containing block for any fixed-position descendant, which is a trap for
+     anything added inside it later. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  z-index: 20;
+
+  /* 35vw — the original half-viewport brief, less 30%.
+     The floor is 330px, not a scaled-down 294px, and it matters more than it looks:
+     35vw only exceeds the floor past ~940px, so the floor is what the panel
+     actually measures on every phone, tablet and small laptop. The bar has to fit
+     the burger plus three uppercase labels there (~316px), and at 294px CONTACT ran
+     past the panel edge. The min() then keeps it inside the gutters on screens
+     narrower than the floor itself. */
+  width: min(calc(100% - 2 * var(--nav-gutter)), max(35vw, 344px));
+}
+
+.nav__panel {
+  position: relative;
+  background-color: var(--nav-fill);
+  border: 1px solid var(--nav-border);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  /* Closing: hold the fill until the drawer has finished collapsing, so the panel
+     doesn't go transparent while there is still content inside it. The opening
+     order is the reverse and lives on [data-open] below. */
+  transition:
+    background-color 0.26s ease 0.2s,
+    border-color 0.26s ease 0.2s,
+    box-shadow 0.26s ease 0.2s;
+}
+
+/* Open palette: dark panel, everything on it inverted to read against it. */
+.nav[data-open] {
+  --nav-fill: #17171a;
+  --nav-border: rgba(255, 255, 255, 0.1);
+  --nav-ink: #ffffff;
+  --nav-ink-soft: rgba(255, 255, 255, 0.58);
+  --nav-hover: rgba(255, 255, 255, 0.08);
+  --nav-rule: rgba(255, 255, 255, 0.1);
+}
+
+.nav[data-open] .nav__panel {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+  /* Fill first, then expand — no delay here, the delay is on the drawer. */
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* Opening: the ink lands with the fill, no hold. */
+.nav[data-open] .nav__burger,
+.nav[data-open] .nav__link,
+.nav[data-open] .nav__item-label,
+.nav[data-open] .nav__item-blurb {
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+/* --- the bar itself ---------------------------------------------------------- */
+
+.nav__bar {
+  position: relative;
+  height: var(--nav-bar-h);
+  padding: 0 8px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nav__burger {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--nav-ink);
+  transition:
+    background-color 0.18s ease,
+    color 0.26s ease 0.2s;
+}
+
+.nav__burger:hover {
+  background-color: var(--nav-hover);
+}
+
+.nav__burger-lines {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 11px;
+}
+
+.nav__burger-lines > span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1.5px;
+  border-radius: 1px;
+  background-color: currentColor;
+  transition:
+    transform 0.42s cubic-bezier(0.5, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+
+.nav__burger-lines > span:nth-child(1) {
+  top: 0;
+}
+.nav__burger-lines > span:nth-child(2) {
+  top: 50%;
+  margin-top: -0.75px;
+}
+.nav__burger-lines > span:nth-child(3) {
+  bottom: 0;
+}
+
+/* 11px tall with 1.5px bars puts the centre line 4.75px from each end. */
+.nav[data-open] .nav__burger-lines > span:nth-child(1) {
+  transform: translateY(4.75px) rotate(45deg);
+}
+.nav[data-open] .nav__burger-lines > span:nth-child(2) {
+  opacity: 0;
+}
+.nav[data-open] .nav__burger-lines > span:nth-child(3) {
+  transform: translateY(-4.75px) rotate(-45deg);
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: clamp(2px, 1.2vw, 10px);
+}
+
+.nav__link {
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+  font-size: 13.5px;
+  font-weight: 500;
+  /* Caps need tracking; set solid they close up and read as a block. */
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--nav-ink);
+  padding: 7px 10px;
+  white-space: nowrap;
+  transition:
+    background-color 0.18s ease,
+    color 0.26s ease 0.2s;
+}
+
+.nav__link:hover {
+  background-color: var(--nav-hover);
+}
+
+/* --- the drawer -------------------------------------------------------------- */
+
+.nav__drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.34s cubic-bezier(0.4, 0, 0.2, 1); /* closing */
+}
+
+.nav[data-open] .nav__drawer {
+  grid-template-rows: 1fr;
+  /* Opening: wait for the fill to land, then grow. */
+  transition: grid-template-rows 0.46s cubic-bezier(0.22, 0.66, 0.24, 1) 0.12s;
+}
+
+/* The 0fr row only collapses if the item inside it can actually reach zero, which
+   means both overflow clipping and an explicit min-height override of the grid
+   item's `auto` minimum. */
+.nav__drawer-clip {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.nav__drawer-inner {
+  /* Generous top padding: this is the gap between the bar's labels and the first
+     item in the drawer, which otherwise sit close enough to read as one block. */
+  padding: 24px 8px 10px;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.nav[data-open] .nav__drawer-inner {
+  opacity: 1;
+  transition: opacity 0.3s ease 0.24s;
+}
+
+.nav__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 12px 13px;
+  transition: background-color 0.18s ease;
+}
+
+.nav__item + .nav__item {
+  box-shadow: inset 0 1px 0 var(--nav-rule);
+}
+
+.nav__item:hover {
+  background-color: var(--nav-hover);
+}
+
+.nav__item-label {
+  display: block;
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nav-ink);
+  transition: color 0.26s ease 0.2s;
+}
+
+.nav__item-blurb {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--nav-ink-soft);
+  transition: color 0.26s ease 0.2s;
+}
+
+/* --- the blurred backdrop ---------------------------------------------------- */
+
+.nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  opacity: 0;
+  pointer-events: none;
+  background-color: rgba(240, 240, 239, 0.2);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+  transition:
+    opacity 0.32s ease,
+    -webkit-backdrop-filter 0.32s ease,
+    backdrop-filter 0.32s ease;
+}
+
+.nav-scrim[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__panel,
+  .nav[data-open] .nav__panel,
+  .nav__drawer,
+  .nav[data-open] .nav__drawer,
+  .nav__drawer-inner,
+  .nav[data-open] .nav__drawer-inner,
+  .nav__burger-lines > span,
+  .nav-scrim {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+}
+
+/* --- Motif at the foot of the drawer -----------------------------------------
+   The same artwork the page wears on its edges, shrunk and centred to close the
+   menu off. Drawn as a mask over a flat colour rather than an <img> so it can be
+   white here and grey out there from one file.
+
+   It wants a little clear panel above and below rather than sitting tight under
+   the last item, but not so much that it reads as a separate block. */
+.nav__motif {
+  width: clamp(18px, 5%, 24px);
+  aspect-ratio: 390 / 393.649;
+  margin: 30px auto 24px;
+  background-color: #ffffff;
+  -webkit-mask-image: var(--nav-motif-art);
+  mask-image: var(--nav-motif-art);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* Caps plus tracking cost noticeably more width than sentence case did, and on the
+   narrowest phones the burger, three labels and the bar's padding stop fitting
+   inside the panel — CONTACT ends up flush against the edge. Everything above 380px
+   has room at full size; below it, step the labels down rather than clip them. */
+@media (max-width: 380px) {
+  .nav__link {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 7px 6px;
+  }
+}

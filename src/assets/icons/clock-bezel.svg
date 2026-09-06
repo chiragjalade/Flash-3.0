@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -40 1080 1080" fill="none">
+<!-- The clock's bezel, as a mask for the liquid-metal shader.
+
+     An annulus on the same 1000-unit square the clock is drawn on: outer radius
+     497, inner 455, matching the bezel and its dark inner lip in Clock.tsx. Change
+     either radius there and this has to follow.
+
+     Flat black because it is never painted: it is rasterised offscreen so its ALPHA
+     can drive the shader, exactly like the lockup and the edge motifs.
+
+     The viewBox carries 40 units of padding a side, and the ring needs it on BOTH
+     of its edges: the shader's bevel comes from a distance transform seeded on
+     background pixels, and the outer edge sits at 497 of 500 — hard against the art
+     box. Without the margin that edge would read as deep interior and the bevel
+     would flatten along it, losing the roll that makes the ring look turned.
+
+     NOTE: no "- -" sequence may appear in this comment. It is illegal inside an XML
+     comment and silently makes the file unparseable. -->
+<path fill-rule="evenodd" fill="#000" d="M 3,500 A 497,497 0 1,0 997,500 A 497,497 0 1,0 3,500 Z M 45,500 A 455,455 0 1,0 955,500 A 455,455 0 1,0 45,500 Z"/>
+</svg>

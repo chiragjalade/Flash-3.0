@@ -1,0 +1,14 @@
+/* The canvas fills its host, which is what carries the size and position. */
+.metal__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Fallback path: the host draws itself in CSS instead (see the [data-metal="off"]
+   rules alongside each surface), so the dead canvas has to get out of the way. */
+[data-metal="off"] > .metal__canvas {
+  display: none;
+}

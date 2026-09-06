@@ -1,0 +1,245 @@
+/* "The Problem" — frames 1886:87160 and 1886:87496, both 1920 x 1080.
+   Every length below is derived from those frames; the vw/vh forms reproduce the
+   frame's proportion exactly at 1920 and scale sensibly either side of it. */
+
+.prob {
+  --p: 0; /* eased scroll progress through this section, 0 to 1 (set from JS) */
+  --prob-bg: #f0f0ef;
+  --prob-rule: #ebebeb;
+
+  /* Clock geometry, straight from the two frames:
+       entry   1200 x 1129 at (360, 546)  -> 62.5vw wide, centre at 102.8% of height
+       settled  555 x  522 at (682, 279)  -> centre at (50%, 50%), i.e. scale 0.4625
+     so the travel is 52.8vh and the scale ratio is 555/1200.
+     Same aspect in both, so it is a pure scale plus a vertical slide. */
+  --clock-w: 62.5vw;
+  --clock-scale-end: 0.4625;
+  --clock-y-travel: 52.8; /* vh from centre to the entry position */
+
+  position: relative;
+  z-index: 1; /* above the fixed .motifs layer */
+  /* One viewport of travel for the transition, on top of the pinned stage. */
+  height: 200vh;
+  background: transparent;
+}
+
+.prob__stage {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  /* The clock hangs well below the fold at the start; clip it to the stage instead
+     of letting it bleed into whatever follows. */
+  overflow: hidden;
+}
+
+/* --- title and subtitle ------------------------------------------------------ */
+
+.prob__head {
+  position: relative;
+  z-index: 1;
+  /* 97/1080 of the frame height down. */
+  padding-top: clamp(40px, 8.98vh, 108px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, 0.55vh, 8px);
+}
+
+/* The thin rule box around the title. Figma draws it as four separate strokes: the
+   verticals run the full 55px height while the horizontals are inset 5px from the
+   top and 6px from the bottom, so it is not a plain border. Borders give the
+   verticals; the two rules are pseudo-elements at those insets. */
+.prob__title {
+  position: relative;
+  margin: 0;
+  padding: clamp(4px, 0.46vh, 6px) clamp(8px, 0.6vw, 12px);
+  border-left: 2px solid var(--prob-rule);
+  border-right: 2px solid var(--prob-rule);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.prob__title::before,
+.prob__title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--prob-rule);
+}
+
+.prob__title::before {
+  top: clamp(3px, 0.46vh, 5px);
+}
+
+.prob__title::after {
+  bottom: clamp(4px, 0.56vh, 6px);
+}
+
+.prob__title-text {
+  display: block;
+  font-family: var(--font-display, "PP Pangaia", "Fraunces", Georgia, serif);
+  /* 45px at 1920 wide. */
+  font-size: clamp(26px, 2.344vw, 52px);
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+/* The torn band across the letters. Its own colour IS the page ground — the SVG
+   fills with currentColor and this sets that colour — so it reads as the letters
+   being erased rather than as a line drawn over them. */
+.prob__strike {
+  position: absolute;
+  left: 1.2%;
+  right: 0;
+  /* Figma: a 10px-tall band centred on y=122 in a box spanning y=91..146, i.e. just
+     above the middle of the cap height. */
+  top: 52%;
+  height: 0.62em;
+  transform: translateY(-50%);
+  color: var(--prob-bg);
+  -webkit-mask-image: url("../assets/icons/problem-strike.svg");
+  mask-image: url("../assets/icons/problem-strike.svg");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background: currentColor;
+  pointer-events: none;
+}
+
+.prob__sub {
+  margin: 0;
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+  /* 24px at 1920, tracking 4.8px = 0.2em. Figma sets Nata Sans, which this project
+     does not ship; Inter is the closest of the loaded faces and matches the hero's
+     caption treatment. */
+  font-size: clamp(11px, 1.25vw, 26px);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #000000;
+  /* Gone by the time the clock has settled — frame 2.2 has no subtitle. */
+  opacity: max(0, calc(1 - var(--p) * 3));
+}
+
+/* --- the clock --------------------------------------------------------------- */
+
+.prob__clock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--clock-w);
+  /* Transform only — the vertical travel is NOT animated via `top`. `top` is a
+     layout property, so driving it from --p relaid out and repainted the clock on
+     every scroll frame, which is both wasteful and left stale fragments of the
+     larger clock behind as it shrank. Everything here composites instead.
+
+     Order matters: scale applies first (about the element's own centre), then the
+     travel is added in unscaled viewport units, then the -50% pair centres the
+     element. The percentages resolve against the unscaled box, so the centre stays
+     pinned however far it has scaled. */
+  transform: translate(-50%, -50%)
+    translateY(calc(var(--clock-y-travel) * 1dvh * (1 - var(--p))))
+    scale(calc(1 - (1 - var(--clock-scale-end)) * var(--p)));
+  will-change: transform;
+}
+
+/* --- the menu recess ---------------------------------------------------------
+   The clock pulls back from the viewer while the dropdown is down, the same move
+   and the same 0.94 the hero lockup and the edge motifs make — one gesture across
+   both pages rather than three that happen to coincide.
+
+   Its own element, and it has to be: .prob__clock's transform is rewritten from
+   --p on every scroll frame, so a `transition: transform` there would smear the
+   scroll travel as well; .clock-case's is set by the pointer handler and swaps to a
+   0.12s linear transition on hover, which would snap this instead of easing it.
+
+   Pivoted at its own centre, so the clock stays exactly where it settled and only
+   gets smaller. The asymmetric timings match Hero.css: opening waits a beat behind
+   the panel's fill so the recession reads as caused by the menu coming down, and
+   closing comes back a touch faster and without the delay so the clock is already
+   settling as the panel collapses. */
+.clock-recess {
+  --clock-recess: 0.94;
+  transform-origin: 50% 50%;
+  transition: transform 0.5s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.prob[data-recessed] .clock-recess {
+  transform: scale(var(--clock-recess));
+  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.24, 1) 0.04s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-recess,
+  .prob[data-recessed] .clock-recess {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+}
+
+/* --- the clock's case --------------------------------------------------------
+   Hover tilt, shift and shadow. Separate from .prob__clock so the scroll-driven
+   scale and the pointer tilt each own a transform and cannot overwrite each other.
+
+   The rest values live here, and the handler only ever sets or removes the custom
+   properties — so releasing the pointer falls back to these and the transition
+   below eases it home. */
+.clock-case {
+  position: relative;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --shift-x: 0px;
+  --shift-y: 0px;
+
+  transform: perspective(1400px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y))
+    translate3d(var(--shift-x), var(--shift-y), 0);
+  /* Round, because drop-shadow follows the alpha rather than the box — a
+     box-shadow here would put a rectangle under a circular clock. */
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.13));
+  transition:
+    transform 0.5s cubic-bezier(0.22, 0.61, 0.24, 1),
+    filter 0.4s ease;
+}
+
+.clock-case:hover {
+  /* Lifted: a tighter, darker core plus a wider ambient falloff. */
+  filter: drop-shadow(0 20px 20px rgba(0, 0, 0, 0.1))
+    drop-shadow(0 34px 60px rgba(0, 0, 0, 0.16));
+  /* While the pointer is on it the tilt should track, not lag a third of a
+     second behind; the long ease above is for the journey back. */
+  transition:
+    transform 0.12s linear,
+    filter 0.4s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-case,
+  .clock-case:hover {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* The bezel, shaded by the liquid-metal shader instead of its flat gradient.
+
+   Sized 1.08x the clock and inset -4%: the mask SVG pads its artwork by 40 of 1080
+   units so the distance transform has background to seed on at BOTH walls of the
+   ring, and this puts that artwork back over the bezel exactly.
+
+   Tied to --p, so it is absent while the clock is at full size and arrives as it
+   shrinks toward the centre. Underneath it the painted gradient bezel is still
+   there, which is what the partial opacities in between read against. */
+.clock-bezel {
+  position: absolute;
+  inset: -4%;
+  pointer-events: none;
+  opacity: var(--p, 0);
+}
+
+/* No WebGL2: leave the clock's own painted bezel showing rather than covering it
+   with a flat stand-in. */
+.clock-bezel[data-metal="off"] {
+  display: none;
+}

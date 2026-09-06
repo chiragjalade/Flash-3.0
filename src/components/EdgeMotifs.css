@@ -1,0 +1,125 @@
+/* Edge ornaments — the "design element" frames (1884:87112 / 1884:87137) of the
+   homepage frame, which every later frame repeats at the same coordinates.
+
+   Fixed to the viewport, not to a section: the page scrolls past them. That is also
+   why they sit in their own layer rather than inside .hero — a fixed descendant of
+   an element with `overflow: clip` is on murky ground across browsers, and the pair
+   has to outlive the section it started in either way. */
+
+.motifs {
+  --motif-y: 47%;
+  --motif-recess: 0.94;
+  /* Brushed silver, shared with the lockup's no-WebGL fallback so the two read as
+     the same material. Light stops sit just after each dark one, which is what
+     gives a flat fill a rolled-metal glint instead of a smooth grey ramp. */
+  --motif-silver: linear-gradient(
+    168deg,
+    #6d727a 0%,
+    #c6cbd1 13%,
+    #54585e 29%,
+    #edf0f3 45%,
+    #7c828a 57%,
+    #4a4e54 71%,
+    #b8bdc4 85%,
+    #5d6167 100%
+  );
+  --motif-art: url("../assets/icons/hero-motif.svg");
+
+  position: fixed;
+  inset: 0;
+  z-index: 0; /* behind both sections, which sit at z-index 1 */
+  pointer-events: none;
+  /* Each ornament hangs half outside the viewport. Left overhang is harmless, but
+     right overhang would extend the scrollable area, so it has to be clipped.
+     `clip` does that without making this a scroll container; `hidden` is the
+     fallback for browsers that don't take it (Safari < 16). */
+  overflow: hidden;
+  overflow: clip;
+}
+
+.motif {
+  position: absolute;
+  top: var(--motif-y);
+  /* The artwork is padded, so the element is 450/390 wider than what it shows.
+     23.4375vw makes that artwork exactly 390px at the frame's 1920 width, and since
+     the padding is symmetric the art stays centred on the viewport edge with no
+     further correction. */
+  width: clamp(173px, 23.4375vw, 496px);
+  aspect-ratio: 450 / 453.649;
+  /* Closing side of the menu recess; the opening side is on [data-recessed]. */
+  transition: transform 0.5s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+/* No WebGL2: paint the shape flat in CSS rather than leaving the edges empty. */
+.motif[data-metal="off"] {
+  background: var(--motif-silver);
+  -webkit-mask-image: var(--motif-art);
+  mask-image: var(--motif-art);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.motif--left {
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+.motif--right {
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+/* Each keeps its positioning translate and appends the scale. The translate
+   percentages resolve against the element's UNSCALED box, so the centre lands in
+   exactly the same place either way — the mark shrinks about its own centre without
+   drifting. With only the inner half on screen, that reads as the visible edge
+   pulling back from the lockup, which is the intent. */
+.motifs[data-recessed] .motif--left {
+  transform: translate(-50%, -50%) scale(var(--motif-recess));
+}
+
+.motifs[data-recessed] .motif--right {
+  transform: translate(50%, -50%) scale(var(--motif-recess));
+}
+
+.motifs[data-recessed] .motif--left,
+.motifs[data-recessed] .motif--right {
+  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.24, 1) 0.04s;
+}
+
+/* --- Entrance ---------------------------------------------------------------
+   Only `from` is declared: the implicit 100% keyframe is the element's own computed
+   value, so the rest transform (and the recessed variant of it, if the menu is
+   opened mid-entrance) stays defined in one place. Fill is `backwards`, so nothing
+   is left applied once the animation ends. */
+
+@keyframes motif-in-left {
+  from {
+    opacity: 0;
+    transform: translate(-118%, -50%);
+  }
+}
+
+@keyframes motif-in-right {
+  from {
+    opacity: 0;
+    transform: translate(118%, -50%);
+  }
+}
+
+.motif--left {
+  animation: motif-in-left 1.05s cubic-bezier(0.22, 0.68, 0.2, 1) 0.05s backwards;
+}
+
+.motif--right {
+  animation: motif-in-right 1.05s cubic-bezier(0.22, 0.68, 0.2, 1) 0.05s backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motif--left,
+  .motif--right {
+    animation: none;
+  }
+}

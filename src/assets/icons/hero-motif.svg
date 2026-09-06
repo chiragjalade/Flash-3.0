@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 450 453.649" fill="none">
+<!-- Edge motif, from the "design element" frames (1884:87112 / 1884:87137) of the
+     homepage frame 1776:16072 in the Flash 2.0 file (P9oblWIcJSnr7hbzGaMZG8).
+
+     Rebuilt from the node's own coordinates rather than exported as an image: every
+     shape is an axis-aligned 67.781px square or a 52.139x72.995 bar, so it stays
+     crisp at any size this way. Artwork coordinates are the Figma frame's minus
+     (-195, 343). Four staircases of three squares, two bars top and bottom, and an
+     eight-pointed star at the centre made of one square plus the same square turned
+     45 degrees about the same point. Verified against Figma's own render at 0.004%
+     difference, all of it edge antialiasing.
+
+     Flat black because it is never painted directly: it is rasterised into an
+     offscreen canvas so its ALPHA can drive the liquid-metal shader, the same way
+     the lockup does. Keep every path opaque black and add no gradient, stroke,
+     filter, opacity or clip-path, all of which would corrupt the mask.
+
+     The viewBox carries 30 units of padding a side. That is NOT visual margin: the
+     shader's bevel comes from a distance transform seeded on background pixels, and
+     the staircases and bars touch all four edges of the artwork. With no padding
+     those edges have nothing to measure against, so the transform reads them as
+     deep interior and the bevel flattens along them. Padding must stay >= the bevel
+     width (~5% of art height, so ~20 units).
+
+     Both page instances are the SAME artwork, each centred on a viewport edge so
+     exactly half shows; the two halves are mirror images, which is why the edges
+     look mirrored without anything being flipped. The Figma frame draws this flat
+     at #d7d7d7 and the drawer's small copy is white, but on the page proper it is
+     filled by the shader.
+
+     NOTE: no "- -" sequence may appear in this comment. It is illegal inside an XML
+     comment, and it silently makes the file unparseable, at which point the mask
+     resolves to nothing and the element vanishes without an error anywhere. -->
+<g fill="#000">
+<rect x="0" y="164.76" width="67.781" height="67.781"/>
+<rect x="50.57" y="108.45" width="67.781" height="67.781"/>
+<rect x="108.45" y="45.88" width="67.781" height="67.781"/>
+<rect x="0" y="160.59" width="67.781" height="67.781"/>
+<rect x="50.57" y="216.9" width="67.781" height="67.781"/>
+<rect x="108.45" y="279.46" width="67.781" height="67.781"/>
+<rect x="213.77" y="45.88" width="67.781" height="67.781"/>
+<rect x="271.64" y="108.45" width="67.781" height="67.781"/>
+<rect x="322.22" y="164.76" width="67.781" height="67.781"/>
+<rect x="213.77" y="279.46" width="67.781" height="67.781"/>
+<rect x="271.64" y="216.9" width="67.781" height="67.781"/>
+<rect x="322.22" y="160.59" width="67.781" height="67.781"/>
+<rect x="161.63" y="164.76" width="67.781" height="67.781"/>
+<rect x="169.45" y="0" width="52.139" height="72.995"/>
+<rect x="169.45" y="320.65" width="52.139" height="72.995"/>
+<rect x="161.637" y="164.758" width="67.781" height="67.781" transform="rotate(45 195.528 198.649)"/>
+</g>
+</svg>
