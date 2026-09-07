@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import DialMorph from "./DialMorph";
+import { fieldAt } from "../lib/dialField";
 import "./Clock.css";
 
 const REFRACT_MAP = "/icons/clock-refract.png";
@@ -24,6 +26,31 @@ const polar = (deg: number, r: number) => {
   return [C + r * Math.cos(a), C + r * Math.sin(a)] as const;
 };
 
+// The dial's box inside the 1000-unit viewBox: r=447 about the centre, so 53..947.
+// The morph canvas covers exactly this, which is what lets a point on the dial be
+// converted into a point in the noise field.
+const DIAL_MIN = 53;
+const DIAL_SPAN = 894;
+
+/**
+ * Where this element sits in the dissolve, 0 to 1 — the value the shader will
+ * threshold at that same point.
+ *
+ * This is the whole reason the field is baked in JS rather than computed in GLSL:
+ * each numeral, bar, tick and hand turns silver at the instant the photograph
+ * reaches it, because both are reading the same number. A stagger by angle or by
+ * index would also go "one at a time", but it would go round the dial while the
+ * image came in in tendrils, and every element that changed early over ground the
+ * image had not covered yet would give it away.
+ *
+ * v is flipped because the field is stored with row 0 at the bottom, the way a
+ * texture is sampled, while the viewBox counts y downward.
+ */
+const lit = (x: number, y: number): CSSProperties =>
+  ({
+    "--i": fieldAt((x - DIAL_MIN) / DIAL_SPAN, 1 - (y - DIAL_MIN) / DIAL_SPAN).toFixed(4),
+  }) as CSSProperties;
+
 /**
  * Analogue wall clock.
  *
@@ -46,10 +73,19 @@ const polar = (deg: number, r: number) => {
 export default function Clock({
   label = "QUANTHIVE",
   epoch = null,
+  morphRef = null,
+  src,
 }: {
   label?: string;
   /** ms timestamp the clock runs from; null parks it on the 10:10 pose. */
   epoch?: number | null;
+  /** Which photograph this clock's dial becomes. Defaults to the first. */
+  src?: string;
+  /**
+   * How far the dial has turned into the photograph, 0 to 1, read every frame.
+   * Omit it and the clock is just a clock.
+   */
+  morphRef?: { current: number } | null;
 }) {
   const rootRef = useRef<SVGSVGElement>(null);
   // Held in a ref rather than an effect dependency: a reset should restart the
@@ -193,19 +229,48 @@ export default function Clock({
       <circle cx={C} cy={C} r="447" fill="url(#clk-face)" />
       <circle cx={C} cy={C} r="447" fill="url(#clk-vignette)" />
 
+      {/* The photograph the dial turns into, laid straight over the dial face and
+          under everything below — so the minute track, the numerals, the hands and
+          the crystal's own reflections all keep painting on top of it and the clock
+          goes on working while its background changes underneath.
+
+          A foreignObject because the morph is a shader and a shader needs a canvas.
+          Its box is the dial exactly: r=447 of the 1000-unit viewBox, so 53..947.
+          Deliberately OUTSIDE the refraction group below — the displacement map
+          re-runs whenever its input changes, and putting a canvas that repaints
+          every frame inside it would re-run three displacement passes over the
+          whole dial per frame for a distortion the eye cannot separate from the
+          crystal highlights that already sit over the top of it. */}
+      {morphRef ? (
+        <foreignObject x="53" y="53" width="894" height="894">
+          <DialMorph qRef={morphRef} src={src} />
+        </foreignObject>
+      ) : null}
+
       {/* Everything from here to the hub sits UNDER the crystal, so it is what the
           refraction acts on. The bezel and lip above are outside the glass. */}
       <g filter="url(#clk-refract)">
         {/* minute track */}
-        <circle cx={C} cy={C} r="432" fill="none" stroke="#b9b9b9" strokeWidth="1.5" />
-        <g stroke="#6f6f6f">
+        <circle
+          className="clk__track"
+          cx={C}
+          cy={C}
+          r="432"
+          fill="none"
+          stroke="#b9b9b9"
+          strokeWidth="1.5"
+        />
+        <g className="clk__ticks" stroke="#6f6f6f">
           {MINUTES.map((i) => {
             const onFive = i % 5 === 0;
             const [x1, y1] = polar(i * 6, 430);
             const [x2, y2] = polar(i * 6, onFive ? 408 : 418);
+            const [mx, my] = polar(i * 6, 420);
             return (
               <line
                 key={i}
+                className="clk__lit"
+                style={lit(mx, my)}
                 x1={x1}
                 y1={y1}
                 x2={x2}
@@ -221,7 +286,7 @@ export default function Clock({
           {MIN_LABELS.map((n) => {
             const [x, y] = polar(n * 6, 388);
             return (
-              <text key={n} x={x} y={y}>
+              <text key={n} className="clk__lit" style={lit(x, y)} x={x} y={y}>
                 {n}
               </text>
             );
@@ -229,12 +294,14 @@ export default function Clock({
         </g>
 
         {/* hour bars, sitting outside the numerals as they do on the reference */}
-        <g fill="#3a3a3a">
+        <g className="clk__bars" fill="#3a3a3a">
           {HOURS.map((n) => {
             const [x, y] = polar(n * 30, 340);
             return (
               <rect
                 key={n}
+                className="clk__lit"
+                style={lit(x, y)}
                 x={x - 11}
                 y={y - 30}
                 width="22"
@@ -250,23 +317,25 @@ export default function Clock({
           {HOURS.map((n) => {
             const [x, y] = polar(n * 30, 258);
             return (
-              <text key={n} x={x} y={y}>
+              <text key={n} className="clk__lit" style={lit(x, y)} x={x} y={y}>
                 {n}
               </text>
             );
           })}
         </g>
 
-        <text className="clk__brand" x={C} y="642" fill="#8d8d8d">
+        <text className="clk__brand clk__lit" style={lit(C, 642)} x={C} y="642" fill="#8d8d8d">
           {label}
         </text>
 
-        {/* hands — angles come from --clk-* on the root */}
-        <g className="clk__hand clk__hand--hour">
+        {/* hands — angles come from --clk-* on the root. They sweep the whole dial,
+            so there is no one point in the field that is theirs; they take the
+            centre's, which puts their change in the middle of the transition. */}
+        <g className="clk__hand clk__hand--hour clk__lit" style={lit(C, C)}>
           <polygon points="500,268 517,470 500,500 483,470" fill="#141414" />
           <polygon points="500,500 507,548 493,548" fill="#141414" />
         </g>
-        <g className="clk__hand clk__hand--min">
+        <g className="clk__hand clk__hand--min clk__lit" style={lit(C, C)}>
           <polygon points="500,120 513,468 500,500 487,468" fill="#141414" />
           <polygon points="500,500 506,556 494,556" fill="#141414" />
         </g>
@@ -275,7 +344,7 @@ export default function Clock({
           <circle cx={C} cy="590" r="14" fill="#a81d1b" />
         </g>
 
-        <circle cx={C} cy={C} r="19" fill="#141414" />
+        <circle className="clk__hub clk__lit" style={lit(C, C)} cx={C} cy={C} r="19" fill="#141414" />
         <circle cx={C} cy={C} r="7" fill="#a81d1b" />
       </g>
 

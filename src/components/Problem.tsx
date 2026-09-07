@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import Clock from "./Clock";
+import Dissolve from "./Dissolve";
+import MatrixText from "./MatrixText";
+import { DIAL_IMAGE_TWO } from "./DialMorph";
 import ClockGlow, { type GlassLight } from "./ClockGlow";
 import MetalSurface from "./MetalSurface";
 import "./Problem.css";
@@ -30,6 +33,47 @@ const BEZEL_BEVEL = 0.019;
 // material has settled by the time the clock has.
 const RELIGHT_AT = 0.99;
 
+// The "title and caption" group of frame 1894:44 (node 1897:1078), verbatim. The
+// order is the frame's, not the reading you might expect from the names: "hours
+// lost." is the upper line at y=867 in a 45-unit box, and the longer line sits
+// under it at y=918 in a 21-unit one.
+const FOOT_TITLE = "hours lost."; // 1895:995
+const FOOT_CAPTION = "Endless Sources. Endless Research."; // 1895:986
+
+// Frame 1900:1079. The apostrophe is the typographic one the copy is set with, not
+// the straight quote — they are different characters and the serif draws them
+// differently.
+const FOOT_TITLE_2 = "Markets Don’t Wait.";
+const FOOT_CAPTION_2 = "The Market Never Pauses";
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/**
+ * Phase three's sub-tracks, all cut out of one 0..1.
+ *
+ * They overlap on purpose — the brief is that the second clock arrives WHILE the
+ * first is still leaving, and that the line has finished changing by the time it
+ * settles. Writing them as windows on a shared progress is what makes those
+ * relationships legible and adjustable; as separate timers they would drift.
+ */
+const HANDOFF = {
+  /** The first clock's run to the left. */
+  exit: [0.0, 0.55],
+  /** ...and its coming apart, starting once it is already moving. */
+  fade: [0.1, 0.5],
+  /** The second clock's approach from the right. Starts before the first has gone. */
+  enter: [0.28, 0.88],
+  /** ...and its gathering out of the air, finished well before it lands. */
+  form: [0.28, 0.62],
+  /** The metal changing, on the new clock and the ornaments together. */
+  alloy: [0.3, 0.85],
+  /** The line alternating over. Ends before `enter` does, so the text has settled
+   *  by the time the clock reaches its mark. */
+  swap: [0.18, 0.78],
+} as const;
+
+const track = (v: number, w: readonly [number, number]) => clamp01((v - w[0]) / (w[1] - w[0]));
+
 /**
  * "The Problem" — frames 1886:87160 (entry) and 1886:87496 (settled).
  *
@@ -42,11 +86,14 @@ const RELIGHT_AT = 0.99;
 export default function Problem({
   recessed = false,
   toneRef,
+  alloyRef: alloyOut,
 }: {
   /** The menu is down: the clock pulls back from the viewer, as the hero does. */
   recessed?: boolean;
   /** Written every frame: 0 = stainless, 1 = graphite. Read by the edge motifs. */
   toneRef?: { current: number };
+  /** Written every frame: 0 = as the tone left it, 1 = OCEAN. Also the motifs'. */
+  alloyRef?: { current: number };
 }) {
   const sectionRef = useRef<HTMLElement>(null);
   // The moment the clock was started, or null while parked on its 10:10 pose.
@@ -63,6 +110,14 @@ export default function Problem({
     let last = 0;
     let current = 0;
     let target = 0;
+    // Phase two, after the clock has arrived: the dial turns into the photograph.
+    // Its own eased track, because it is driven by scroll the clock no longer
+    // responds to — everything about the clock is finished at --p 1.
+    let curQ = 0;
+    let targetQ = 0;
+    // Phase three: the handoff from the first clock to the second.
+    let curR = 0;
+    let targetR = 0;
     let running = false;
     let inside = false;
     // Second eased track: how far the hero has been scrolled off, 0 to 1. The
@@ -81,10 +136,15 @@ export default function Problem({
 
     const measure = () => {
       const rect = section.getBoundingClientRect();
-      // The scrollable travel is the section's height less one viewport, which is
-      // exactly how far it moves while the sticky stage is pinned.
-      const range = section.offsetHeight - window.innerHeight;
-      target = range > 0 ? Math.min(1, Math.max(0, -rect.top / range)) : 0;
+      // Two phases of one viewport each, measured off the raw scroll rather than
+      // split out of a single 0..1 over the whole section: that way the first phase
+      // is unchanged by the second existing at all, and adding travel to the end
+      // cannot quietly restretch the clock's approach.
+      const vh = window.innerHeight;
+      const scrolled = -rect.top;
+      target = clamp01(scrolled / vh);
+      targetQ = clamp01((scrolled - vh) / vh);
+      targetR = clamp01((scrolled - 2 * vh) / vh);
 
       targetV = Math.min(1, Math.max(0, 1 - rect.top / window.innerHeight));
 
@@ -101,6 +161,50 @@ export default function Problem({
     const write = (v: number) => {
       current = v;
       section.style.setProperty("--p", v.toFixed(4));
+      // Also on the document element, because the edge motifs shrink with the
+      // clock on a phone and they are a fixed sibling of this section rather than
+      // a child — there is no other element both can see. Whether anything acts on
+      // it is CSS's business: only the mobile block in EdgeMotifs.css reads it, so
+      // a desktop pays nothing for this beyond the write itself.
+      document.documentElement.style.setProperty("--prob-p", v.toFixed(4));
+    };
+
+    const writeQ = (v: number) => {
+      curQ = v;
+      morphRef.current = v;
+      // Mirrored into the DOM as well: the shader reads the ref, but the number has
+      // to be inspectable, and nothing about a dissolve can be read back out of the
+      // pixels it produces.
+      section.style.setProperty("--q", v.toFixed(4));
+    };
+
+    const writeR = (v: number) => {
+      curR = v;
+      section.style.setProperty("--r", v.toFixed(4));
+      // The border lines hand over during this phase and they live on the fixed
+      // ornament layer, outside this section — same reason --prob-p is published.
+      document.documentElement.style.setProperty("--prob-r", v.toFixed(4));
+
+      // Accelerating away: squared rather than linear, so it creeps off its mark and
+      // is moving fastest at the moment it stops being there to watch.
+      const e1 = track(v, HANDOFF.exit);
+      section.style.setProperty("--exit", (e1 * e1).toFixed(4));
+      fadeOneRef.current = track(v, HANDOFF.fade);
+
+      // Decelerating in, which is the same curve read backwards — it arrives fast
+      // and settles rather than coasting in at a constant rate.
+      const e2 = track(v, HANDOFF.enter);
+      section.style.setProperty("--enter", (1 - (1 - e2) * (1 - e2)).toFixed(4));
+      // The dissolve runs the other way for the clock that is gathering.
+      formTwoRef.current = 1 - track(v, HANDOFF.form);
+      // Its dial is already the second image by the time it is solid enough to read;
+      // keyed to the phase rather than to nothing so the file is still only fetched
+      // once someone has scrolled this far.
+      morphTwoRef.current = clamp01(v / 0.28);
+
+      alloyRef.current = track(v, HANDOFF.alloy);
+      section.style.setProperty("--alloy", alloyRef.current.toFixed(4));
+      swapRef.current = track(v, HANDOFF.swap);
     };
 
     // Darkens as the hero scrolls off, then lights back up across the section's
@@ -126,10 +230,19 @@ export default function Problem({
       const next = current + (target - current) * k;
       curV += (targetV - curV) * k;
       write(next);
+      writeQ(curQ + (targetQ - curQ) * k);
+      writeR(curR + (targetR - curR) * k);
       writeTone(curV, next);
-      if (Math.abs(target - next) < 0.0004 && Math.abs(targetV - curV) < 0.0004) {
+      if (
+        Math.abs(target - next) < 0.0004 &&
+        Math.abs(targetV - curV) < 0.0004 &&
+        Math.abs(targetQ - curQ) < 0.0004 &&
+        Math.abs(targetR - curR) < 0.0004
+      ) {
         curV = targetV;
         write(target);
+        writeQ(targetQ);
+        writeR(targetR);
         writeTone(curV, target);
         raf = 0;
         running = false;
@@ -144,6 +257,8 @@ export default function Problem({
         // no easing to chase; land on the values immediately
         curV = targetV;
         write(target);
+        writeQ(targetQ);
+        writeR(targetR);
         writeTone(curV, target);
         return;
       }
@@ -156,12 +271,17 @@ export default function Problem({
     measure();
     curV = targetV;
     write(target);
+    writeQ(targetQ);
+    writeR(targetR);
     writeTone(curV, target);
     window.addEventListener("scroll", kick, { passive: true });
     window.addEventListener("resize", kick);
 
     return () => {
       cancelAnimationFrame(raf);
+      // Published outside this section, so it has to be taken back by hand.
+      document.documentElement.style.removeProperty("--prob-p");
+      document.documentElement.style.removeProperty("--prob-r");
       window.removeEventListener("scroll", kick);
       window.removeEventListener("resize", kick);
     };
@@ -175,9 +295,30 @@ export default function Problem({
   // Where the light sits on the crystal, and how strongly. Written by the pointer
   // handler below, read every frame by the glow pass.
   const lightRef = useRef<GlassLight>({ x: 0, y: 0, hover: 0 });
+  // The second clock gets the same treatment and its own light: sharing one would
+  // slide the highlight across BOTH crystals whichever you were pointing at.
+  const caseTwoRef = useRef<HTMLDivElement>(null);
+  const lightTwoRef = useRef<GlassLight>({ x: 0, y: 0, hover: 0 });
+  // Phase two's progress, read by the dial's shader every frame it draws.
+  const morphRef = useRef(0);
+  // Phase three. fadeOne takes the first clock apart, formTwo puts the second one
+  // together (so it counts DOWN as that clock gathers), alloy carries both the new
+  // bezel and the edge ornaments over, and swap runs the line over to its new copy.
+  const fadeOneRef = useRef(0);
+  const formTwoRef = useRef(1);
+  const morphTwoRef = useRef(0);
+  const ownAlloyRef = useRef(0);
+  // The ornaments live outside this section, so their copy of the value is passed
+  // down from App; this falls back to a local one when it is rendered without.
+  const alloyRef = alloyOut ?? ownAlloyRef;
+  const swapRef = useRef(0);
   useEffect(() => {
-    const el = caseRef.current;
-    if (!el) return;
+    // Bound to each clock in turn rather than to the first one only. They are never
+    // both under the pointer — one is leaving as the other arrives — but the second
+    // is what you are left looking at, and a clock that ignores the cursor after the
+    // one before it did not reads as a picture of a clock.
+    const bind = (el: HTMLDivElement | null, light: { current: GlassLight }) => {
+      if (!el) return () => {};
 
     let raf = 0;
     let nx = 0;
@@ -206,16 +347,16 @@ export default function Problem({
       ny = clamp((e.clientY - (r.top + r.height / 2)) / (r.height / 2));
       // The glow's light goes to the cursor itself, not the damped tilt: it is a
       // reflection of something in the room, so it belongs where you are pointing.
-      lightRef.current.x = nx;
-      lightRef.current.y = ny;
-      lightRef.current.hover = 1;
+      light.current.x = nx;
+      light.current.y = ny;
+      light.current.hover = 1;
       if (!raf) raf = requestAnimationFrame(apply);
     };
 
     const onLeave = () => {
       cancelAnimationFrame(raf);
       raf = 0;
-      lightRef.current.hover = 0;
+      light.current.hover = 0;
       // Clear rather than zero, so the CSS rest values apply and the ease-out
       // transition there governs the way back.
       for (const k of ["--tilt-x", "--tilt-y", "--shift-x", "--shift-y", "--clk-gx", "--clk-gy"]) {
@@ -225,10 +366,18 @@ export default function Problem({
 
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerleave", onLeave);
+      return () => {
+        cancelAnimationFrame(raf);
+        el.removeEventListener("pointermove", onMove);
+        el.removeEventListener("pointerleave", onLeave);
+      };
+    };
+
+    const offOne = bind(caseRef.current, lightRef);
+    const offTwo = bind(caseTwoRef.current, lightTwoRef);
     return () => {
-      cancelAnimationFrame(raf);
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerleave", onLeave);
+      offOne();
+      offTwo();
     };
   }, []);
 
@@ -244,6 +393,17 @@ export default function Problem({
           <p className="prob__sub">Time is precious</p>
         </div>
 
+        {/* Arrives under the clock as the dial finishes turning into the
+            photograph — see --q, and the reveal window in Problem.css. */}
+        <div className="prob__foot">
+          <p className="prob__foot-title">
+            <MatrixText from={FOOT_TITLE} to={FOOT_TITLE_2} progressRef={swapRef} />
+          </p>
+          <p className="prob__foot-caption">
+            <MatrixText from={FOOT_CAPTION} to={FOOT_CAPTION_2} progressRef={swapRef} />
+          </p>
+        </div>
+
         <div className="prob__clock">
           {/* Three nested elements, one transform each, because all three change on
               different clocks and a single transform can only be owned by one of
@@ -253,7 +413,7 @@ export default function Problem({
               hover tilt, set from the pointer handler. */}
           <div className="clock-recess">
             <div className="clock-case" ref={caseRef}>
-              <Clock epoch={clockEpoch} />
+              <Clock epoch={clockEpoch} morphRef={morphRef} />
               {/* Above the dial's refraction, below the bezel: it is light on the
                   crystal, and the shader clips it to the dial. */}
               <ClockGlow className="clock-glow" lightRef={lightRef} />
@@ -270,7 +430,36 @@ export default function Problem({
             </div>
           </div>
         </div>
+
+        {/* The clock that takes over. Same component, its own image and a warm
+            bezel; it gathers out of the air on the right while the first is still
+            on its way off to the left, and lands on the mark the first one left.
+
+            It carries the same pointer tilt and its own light — see `bind` above. */}
+        <div className="prob__clock prob__clock--two">
+          <div className="clock-recess">
+            <div className="clock-case clock-case--two" ref={caseTwoRef}>
+              <Clock epoch={clockEpoch} morphRef={morphTwoRef} src={DIAL_IMAGE_TWO} />
+              <ClockGlow className="clock-glow" lightRef={lightTwoRef} />
+              <MetalSurface
+                className="clock-bezel"
+                src={BEZEL_SRC}
+                artHeightShare={BEZEL_ART_SHARE}
+                bevelFrac={BEZEL_BEVEL}
+                trackPointer={false}
+                alloyRef={alloyRef}
+                aria-hidden
+              />
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* One filter per clock: they are at opposite ends of the same transition, so
+          a shared threshold would take them apart and put them together in lockstep
+          instead of one after the other. */}
+      <Dissolve id="clk-dissolve-one" amountRef={fadeOneRef} />
+      <Dissolve id="clk-dissolve-two" amountRef={formTwoRef} />
     </section>
   );
 }

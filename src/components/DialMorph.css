@@ -1,0 +1,17 @@
+/* Fills the foreignObject the clock hands it, which is the dial's own box. The
+   circle is cut in the shader rather than here — see the disc term — so the rim is
+   antialiased instead of clipped to whole pixels. */
+.clk__morph {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The filter definitions are not drawn — they exist to be referenced by id. Taken
+   out of flow entirely rather than merely hidden, so they cannot affect layout. */
+.fx-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}

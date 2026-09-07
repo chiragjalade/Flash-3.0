@@ -70,3 +70,58 @@
 
 /* No reduced-motion rule on the hands: they are a readout of the actual time, not
    decoration, and freezing them would make the clock wrong rather than calmer. */
+
+/* --- turning silver with the photograph --------------------------------------
+   As the dial morphs, every mark on it changes colour — but each one at the moment
+   the image actually reaches IT, not all together and not on a sweep of its own.
+
+   --i is that element's place in the dissolve, written by Clock.tsx out of the same
+   baked field the shader thresholds (lib/dialField.ts). The arithmetic below is the
+   shader's reveal, rearranged: it ramps from q = i to q = i + 0.36, where 0.36 is
+   twice the FIELD_EDGE both sides share. Linear here against the shader's
+   smoothstep, which is a difference of a few percent across a band that is already
+   soft, and nothing a colour blend shows.
+
+   Only the second hand stays red. It is the one mark on the face that is not
+   information — it is the accent — and red carries against both the silver dial and
+   the photograph, so there is nothing for it to gain by changing. */
+.clk {
+  --clk-silver: #eaeef2;
+}
+
+.clk__lit {
+  --lit: clamp(0, calc((var(--q, 0) * 1.36 - var(--i, 0)) / 0.36), 1);
+}
+
+.clk__minlabels .clk__lit {
+  fill: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #7b7b7b);
+}
+
+.clk__hours .clk__lit {
+  fill: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #3d3d3d);
+}
+
+.clk__bars .clk__lit {
+  fill: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #3a3a3a);
+}
+
+.clk__brand {
+  fill: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #8d8d8d);
+}
+
+.clk__ticks .clk__lit {
+  stroke: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #6f6f6f);
+}
+
+/* One continuous ring, so it has no single place in the field. Half way, which puts
+   it with the middle of the transition rather than at either end of it. */
+.clk__track {
+  --lit: clamp(0, calc((var(--q, 0) * 1.36 - 0.5) / 0.36), 1);
+  stroke: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #b9b9b9);
+}
+
+.clk__hand--hour polygon,
+.clk__hand--min polygon,
+.clk__hub {
+  fill: color-mix(in srgb, var(--clk-silver) calc(var(--lit) * 100%), #141414);
+}

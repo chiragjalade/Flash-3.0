@@ -33,6 +33,11 @@ type Props = {
    * a React render per frame.
    */
   toneRef?: { current: number } | null;
+  /**
+   * Live 0..1 blend toward OCEAN, applied on top of whatever `toneRef` produced.
+   * Also a ref: it is driven by the same scroll.
+   */
+  alloyRef?: { current: number } | null;
   children?: ReactNode;
 } & Omit<ComponentPropsWithoutRef<"div">, "children">;
 
@@ -50,6 +55,7 @@ export default function MetalSurface({
   bevelFrac = STAINLESS.bevelFrac,
   trackPointer = true,
   toneRef = null,
+  alloyRef = null,
   children,
   ...divProps
 }: Props) {
@@ -128,8 +134,9 @@ export default function MetalSurface({
     // Re-uploaded only when the tone actually moves — for a surface with no
     // toneRef this runs exactly once, as it did before.
     let lastTone = Number.NaN;
-    const setMaterial = (t: number) => {
-      const m = material(t);
+    let lastAlloy = Number.NaN;
+    const setMaterial = (t: number, a: number) => {
+      const m = material(t, a);
       gl.uniform3fv(uBaseColor, m.baseColor);
       gl.uniform3fv(uHighlight, m.highlight);
       gl.uniform1f(uFlowSpeed, m.flowSpeed);
@@ -143,8 +150,9 @@ export default function MetalSurface({
       gl.uniform1f(uSpecSize, m.specSize);
       gl.uniform1f(uBrush, m.brush);
       lastTone = t;
+      lastAlloy = a;
     };
-    setMaterial(toneRef ? toneRef.current : 0);
+    setMaterial(toneRef ? toneRef.current : 0, alloyRef ? alloyRef.current : 0);
 
     const tex = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0);
@@ -201,7 +209,8 @@ export default function MetalSurface({
       spec.y += (spec.ty - spec.y) * k;
 
       const tone = toneRef ? toneRef.current : 0;
-      if (tone !== lastTone) setMaterial(tone);
+      const alloy = alloyRef ? alloyRef.current : 0;
+      if (tone !== lastTone || alloy !== lastAlloy) setMaterial(tone, alloy);
 
       gl.uniform1f(uTime, t);
       gl.uniform2f(uViewSize, maskW, maskH);
@@ -314,7 +323,7 @@ export default function MetalSurface({
       gl.deleteBuffer(buf);
       gl.deleteProgram(program);
     };
-  }, [src, artHeightShare, bevelFrac, trackPointer, toneRef]);
+  }, [src, artHeightShare, bevelFrac, trackPointer, toneRef, alloyRef]);
 
   return (
     <div {...divProps} ref={hostRef}>

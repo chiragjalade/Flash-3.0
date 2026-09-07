@@ -9,6 +9,14 @@
 .motifs {
   --motif-y: 47%;
   --motif-recess: 0.94;
+
+  /* One knob for both edge elements. The ornament's padded box is 450 units wide
+     where the border line's is 280.5, so the line is derived from the ornament
+     rather than sized independently — change the ornament and the line follows,
+     at every breakpoint, without the two drifting out of proportion. */
+  --motif-w: clamp(173px, 23.4375vw, 496px);
+  --motif-line-w: calc(var(--motif-w) * (280.5 / 450));
+  --motif-line-len: calc(var(--motif-line-w) * var(--motif-line-len-ratio, 3.99789));
   /* Brushed silver, shared with the lockup's no-WebGL fallback so the two read as
      the same material. Light stops sit just after each dark one, which is what
      gives a flat fill a rolled-metal glint instead of a smooth grey ramp. */
@@ -44,8 +52,28 @@
      23.4375vw makes that artwork exactly 390px at the frame's 1920 width, and since
      the padding is symmetric the art stays centred on the viewport edge with no
      further correction. */
-  width: clamp(173px, 23.4375vw, 496px);
+  width: var(--motif-w);
   aspect-ratio: 450 / 453.649;
+
+  /* Three separate properties, and the split is load-bearing.
+
+     `translate` holds the half-box offset that pins the mark to the viewport edge.
+     `scale` is the scroll-driven shrink, which changes every frame. `transform` is
+     the menu recess, which is eased over half a second. Putting the shrink in the
+     transform would drag it into that transition and leave it half a second behind
+     the clock it is meant to be moving with; leaving the offset in the transform
+     would put the shrink OUTSIDE it in the composition order, and scaling an
+     element that has already been pushed half its own width sideways scales that
+     push too — the mark creeps toward the corner as it shrinks instead of holding
+     still. Measured at 9.3px of drift before this was split out.
+
+     The browser composes them translate -> scale -> transform, which is exactly the
+     order that keeps the centre still under both scales.
+
+     Scaling here rather than on .motifs is also what keeps each mark on its own
+     centre: scaling the container would drag both toward the middle of the screen. */
+  scale: var(--motif-shrink, 1);
+
   /* Closing side of the menu recess; the opening side is on [data-recessed]. */
   transition: transform 0.5s cubic-bezier(0.3, 0, 0.2, 1);
 }
@@ -61,32 +89,31 @@
   mask-repeat: no-repeat;
 }
 
+/* --motif-dy rides in the translate rather than in `top`, because it changes on
+   every scroll frame and `top` is a layout property — it would relayout and repaint
+   the pair per frame. It also has to be HERE and not in the transform: translate is
+   applied before both scales, so the offset lands whole instead of being multiplied
+   by whatever size the mark has shrunk to. */
 .motif--left {
   left: 0;
-  transform: translate(-50%, -50%);
+  translate: -50% calc(-50% + var(--motif-dy, 0px));
 }
 
 .motif--right {
   right: 0;
-  transform: translate(50%, -50%);
+  translate: 50% calc(-50% + var(--motif-dy, 0px));
 }
 
-/* Each keeps its positioning translate and appends the scale. The translate
-   percentages resolve against the element's UNSCALED box, so the centre lands in
-   exactly the same place either way — the mark shrinks about its own centre without
-   drifting. With only the inner half on screen, that reads as the visible edge
-   pulling back from the lockup, which is the intent. */
-.motifs[data-recessed] .motif--left {
-  transform: translate(-50%, -50%) scale(var(--motif-recess));
-}
-
-.motifs[data-recessed] .motif--right {
-  transform: translate(50%, -50%) scale(var(--motif-recess));
-}
-
-.motifs[data-recessed] .motif--left,
-.motifs[data-recessed] .motif--right {
-  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.24, 1) 0.04s;
+/* One rule, not one per side: with the offset moved onto `translate` the two sides
+   no longer differ here. The offset resolves against the element's UNSCALED box and
+   is applied before either scale, so the centre lands in exactly the same place at
+   any size — the mark shrinks about its own centre without drifting. With only the
+   inner half on screen, that reads as the visible edge pulling back from the
+   lockup, which is the intent. */
+.motifs[data-recessed] .motif,
+.motifs[data-recessed] .motif-line {
+  transform: scale(var(--motif-recess));
+  transition: transform 0.6s cubic-bezier(0.22, 0.66, 0.24, 1) 0.04s;
 }
 
 /* --- Entrance ---------------------------------------------------------------
@@ -98,14 +125,14 @@
 @keyframes motif-in-left {
   from {
     opacity: 0;
-    transform: translate(-118%, -50%);
+    translate: -118% -50%;
   }
 }
 
 @keyframes motif-in-right {
   from {
     opacity: 0;
-    transform: translate(118%, -50%);
+    translate: 118% -50%;
   }
 }
 
@@ -121,5 +148,161 @@
   .motif--left,
   .motif--right {
     animation: none;
+  }
+}
+
+/* --- Phones ------------------------------------------------------------------
+   Same 640px boundary as Hero.css and Problem.css.
+
+   The 173px floor was the whole problem on a phone. Below ~738px the vw term is
+   the smaller of the two, so the floor took over and pinned the marks at a size
+   meant for a laptop — 173px of a 444px screen, 39% of it, which is why they sat
+   on top of the lockup instead of beside it. Dropping the floor lets them keep
+   scaling with the viewport all the way down; the vw term is unchanged, so at the
+   boundary itself the two rules agree to the pixel and there is no step.
+
+   They also give a little room back as the clock arrives, tied to that section's
+   own progress (--prob-p, published by Problem.tsx). A tenth is enough: the clock
+   grows by more than the marks give up, so the balance still shifts toward it
+   without them shrinking into specks at the bottom of the travel. Only here — on a
+   desktop there is space for both at full size. */
+@media (max-width: 640px) {
+  .motifs {
+    --motif-w: clamp(88px, 27vw, 173px);
+  }
+
+  .motifs {
+    --motif-shrink: calc(1 - 0.1 * var(--prob-p, 0));
+
+    /* Bring the pair onto the clock's centreline as it arrives.
+       The marks sit at 47% of the viewport; the clock settles 5dvh above the stage
+       centre (--clock-y-end in Problem.css), i.e. at 45dvh. Closing that 2dvh over
+       the same travel means the three are exactly level once the clock has stopped,
+       and nothing moves on the hero, where --prob-p is 0. Both numbers are written
+       out in Problem.css; if either moves, this follows. */
+    --motif-dy: calc(var(--prob-p, 0) * -2dvh);
+  }
+}
+
+/* --- "design element border line" --------------------------------------------
+   Figma 1887:55 / 1887:57 of frame 1886:87496. A stepped bracket at each edge,
+   drawn as a single open stroke that grows in as the clock shrinks to the centre.
+
+   Flush with the viewport edge rather than half outside it, unlike the ornaments:
+   the frame puts the left line's box at x=-1 of 1920, so all of it is on screen.
+   The vertical anchor and the phone nudge onto the clock's centreline it shares
+   with the ornaments, so the two stay concentric at every width.
+
+   What it does NOT share is --motif-shrink. The ornaments give ground as the clock
+   arrives; the line is the frame around all of it and has to stay ON the edge, and
+   scaling it about its own centre lifted its outer edge 3.7px clear of the screen —
+   which reads as a gap, not as a recession. */
+.motif-line {
+  position: absolute;
+  top: var(--motif-y);
+  width: var(--motif-line-w);
+  aspect-ratio: 280.5 / 563;
+  /* An <svg> clips to its viewport by default, which would take the outer half of
+     the stroke off along all four sides. */
+  overflow: visible;
+  transition: transform 0.5s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.motif-line--left {
+  left: 0;
+  translate: 0 calc(-50% + var(--motif-dy, 0px));
+}
+
+.motif-line--right {
+  right: 0;
+  translate: 0 calc(-50% + var(--motif-dy, 0px));
+}
+
+.motif-line {
+  /* Phase three's two windows, cut out of the handoff's own progress. The green
+     starts while the grey is still leaving — the brief is that one goes as the other
+     comes, not one after the other — and finishes at 0.85, just before the second
+     clock lands at 0.88. */
+  --line-out: clamp(0, calc((var(--prob-r, 0) - 0.02) / 0.48), 1);
+  --line-in: clamp(0, calc((var(--prob-r, 0) - 0.2) / 0.65), 1);
+}
+
+/* Shared by both strokes. Paint and weight are deliberately NOT here: a rule on
+   `.motif-line path` is a CSS declaration and outranks the `stroke` presentation
+   attribute on the element itself, so the second stroke's gradient was being
+   overpainted with the first one's grey — and at (0,1,1) it also outranked the
+   class rule meant to thicken it, so neither change took. Each stroke sets its own
+   paint and width, at matching specificity. */
+.motif-line path {
+  fill: none;
+  /* A hairline is a hairline at any size. Without this the stroke would scale with
+     the box and come out at a third of a pixel on a phone, which the compositor
+     renders as a grey smear rather than a line. */
+  vector-effect: non-scaling-stroke;
+  /* The path's rendered length. non-scaling-stroke means the dash is measured in
+     screen pixels, so this has to be too — and the element's own width is already
+     in them, which makes the line's length a fixed multiple of it whatever size it
+     is drawn at (ratio published from EdgeMotifs.tsx). One dash and one gap, each a
+     whole path, so an offset of one length hides it exactly.
+
+     The unit on the offsets below is not optional either: as a CSS property, rather
+     than an SVG presentation attribute, stroke-dashoffset takes a length, and a
+     unitless calc is simply invalid — the declaration is dropped and the offset
+     falls back to 0, which draws the line in full at every scroll position. */
+  stroke-dasharray: var(--motif-line-len);
+}
+
+/* Half the lightness of the #c5c5c5 the Figma node carries (rgb 197 -> 98), so the
+   line reads against the page ground rather than sitting on the edge of visible —
+   the frame's own value all but disappears at this weight. */
+.motif-line .motif-line__base {
+  stroke: #626262;
+  stroke-width: 1;
+}
+
+/* A little heavier than the stroke it replaces, and the paint comes from the
+   gradient on the element. At 1px the line is nearly all partial coverage and its
+   colour never really lands; the extra weight is what lets the green be green
+   rather than a grey suggestion of it. */
+.motif-line .motif-line__ocean {
+  stroke-width: 1.7;
+}
+
+/* Drawn by the section's own scroll progress, so the lines arrive exactly as the
+   clock shrinks and are complete when it lands — and are simply absent on the
+   hero, where --prob-p is 0. No transition on the offset: --prob-p is already
+   eased frame by frame in Problem.tsx, and easing it twice would lag the draw
+   behind the clock that is supposed to be causing it. */
+/* The original stroke: drawn on by --prob-p in phase one, then carried straight
+   past its own end by --line-out in phase three. Continuing the offset in the SAME
+   direction rather than reversing it is what makes it run off instead of rewinding —
+   the drawn segment travels along the path and leaves by the far end, which is the
+   same gesture that put it there. */
+.motif-line--left .motif-line__base {
+  stroke-dashoffset: calc(
+    var(--motif-line-len) * (var(--line-out) - (1 - var(--prob-p, 0)))
+  );
+}
+
+.motif-line--right .motif-line__base {
+  stroke-dashoffset: calc(
+    var(--motif-line-len) * ((1 - var(--prob-p, 0)) - var(--line-out))
+  );
+}
+
+/* The replacement, drawing on exactly as the first one did — left from its bottom
+   end, right from its top — so the handover is the same move twice rather than two
+   different ones. */
+.motif-line--left .motif-line__ocean {
+  stroke-dashoffset: calc(-1 * var(--motif-line-len) * (1 - var(--line-in)));
+}
+
+.motif-line--right .motif-line__ocean {
+  stroke-dashoffset: calc(var(--motif-line-len) * (1 - var(--line-in)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motif-line {
+    transition-duration: 0.01ms;
   }
 }

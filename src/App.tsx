@@ -20,13 +20,16 @@ export default function App() {
   // frame, EdgeMotifs reads it every frame. A ref rather than state because it
   // changes continuously — as state it would re-render the whole tree per frame.
   const toneRef = useRef(0);
+  // Same shape, same reason: the ornaments change metal with the second clock, and
+  // that is written by Problem every frame too.
+  const alloyRef = useRef(0);
   return (
     <>
       {/* Fixed to the viewport, so the pages scroll past a single pair rather than
           each carrying its own copy. */}
-      <EdgeMotifs recessed={menuOpen} toneRef={toneRef} />
+      <EdgeMotifs recessed={menuOpen} toneRef={toneRef} alloyRef={alloyRef} />
       <Hero recessed={menuOpen} />
-      <Problem recessed={menuOpen} toneRef={toneRef} />
+      <Problem recessed={menuOpen} toneRef={toneRef} alloyRef={alloyRef} />
       <Nav open={menuOpen} onOpenChange={setMenuOpen} />
     </>
   );

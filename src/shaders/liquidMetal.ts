@@ -332,21 +332,68 @@ export const GRAPHITE = {
 
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Blend of STAINLESS (t=0) and GRAPHITE (t=1). */
-export function material(t: number) {
-  const k = Math.max(0, Math.min(1, t));
+/** Green metal with the depth of deep water in it — near-black teal in the troughs
+ *  running up to a pale aqua on the crests. Reached as the second clock arrives, and
+ *  taken by the edge ornaments at the same time so the whole page turns together
+ *  rather than one object changing metal in isolation.
+ *
+ *  Chroma sits higher than the steel's but nowhere near the top of its range: what
+ *  makes this read as metal that happens to be green, rather than as a green
+ *  gradient, is the distance between base and highlight. Push the hue instead and it
+ *  turns into flat plastic. The sheen is up for the same reason — water and polished
+ *  metal share a hard, narrow specular, and that is most of the impression. */
+export const OCEAN = {
+  ...STAINLESS,
+  baseColor: [0.13, 0.36, 0.33] as const,
+  highlight: [0.72, 0.97, 0.90] as const,
+  chroma: 0.26,
+  sheen: 0.66,
+  roughness: 0.42,
+  specIntensity: 0.56,
+  brush: 0.18,
+};
+
+type Alloy = Omit<typeof STAINLESS, "baseColor" | "highlight"> & {
+  baseColor: readonly number[];
+  highlight: readonly number[];
+};
+
+/** Field-by-field blend of two presets. Every preset spreads STAINLESS, so they all
+ *  carry the same keys and this can never read an undefined one. */
+function blend(a: Alloy, b: Alloy, t: number) {
   return {
-    baseColor: STAINLESS.baseColor.map((v, i) => mix(v, GRAPHITE.baseColor[i]!, k)),
-    highlight: STAINLESS.highlight.map((v, i) => mix(v, GRAPHITE.highlight[i]!, k)),
-    flowSpeed: mix(STAINLESS.flowSpeed, GRAPHITE.flowSpeed, k),
-    repetition: mix(STAINLESS.repetition, GRAPHITE.repetition, k),
-    distortion: mix(STAINLESS.distortion, GRAPHITE.distortion, k),
-    chroma: mix(STAINLESS.chroma, GRAPHITE.chroma, k),
-    sheen: mix(STAINLESS.sheen, GRAPHITE.sheen, k),
-    flowAngle: mix(STAINLESS.flowAngle, GRAPHITE.flowAngle, k),
-    roughness: mix(STAINLESS.roughness, GRAPHITE.roughness, k),
-    specIntensity: mix(STAINLESS.specIntensity, GRAPHITE.specIntensity, k),
-    specSize: mix(STAINLESS.specSize, GRAPHITE.specSize, k),
-    brush: mix(STAINLESS.brush, GRAPHITE.brush, k),
+    ...a,
+    baseColor: a.baseColor.map((v, i) => mix(v, b.baseColor[i]!, t)),
+    highlight: a.highlight.map((v, i) => mix(v, b.highlight[i]!, t)),
+    flowSpeed: mix(a.flowSpeed, b.flowSpeed, t),
+    repetition: mix(a.repetition, b.repetition, t),
+    distortion: mix(a.distortion, b.distortion, t),
+    chroma: mix(a.chroma, b.chroma, t),
+    sheen: mix(a.sheen, b.sheen, t),
+    flowAngle: mix(a.flowAngle, b.flowAngle, t),
+    roughness: mix(a.roughness, b.roughness, t),
+    specIntensity: mix(a.specIntensity, b.specIntensity, t),
+    specSize: mix(a.specSize, b.specSize, t),
+    brush: mix(a.brush, b.brush, t),
   };
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/**
+ * The material at a point on both axes: `tone` darkens STAINLESS to GRAPHITE as the
+ * hero scrolls off, `alloy` carries whatever that produced over to OCEAN as the
+ * second clock arrives.
+ *
+ * Applied in that order on purpose. Changing alloy first and then darkening would
+ * give a muddy grey-green at any point where both are part-way; darkening first and
+ * then changing keeps the far end reading as the alloy whatever the tone underneath.
+ *
+ * The axis is named for its job rather than its colour — it has already been gold
+ * once, and a `goldRef` holding a green is the kind of name that costs someone an
+ * afternoon later.
+ */
+export function material(tone: number, alloy = 0) {
+  const base = blend(STAINLESS, GRAPHITE, clamp01(tone));
+  return alloy > 0 ? blend(base, OCEAN, clamp01(alloy)) : base;
 }

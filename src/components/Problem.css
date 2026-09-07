@@ -4,6 +4,18 @@
 
 .prob {
   --p: 0; /* eased scroll progress through this section, 0 to 1 (set from JS) */
+  --q: 0; /* phase two: the dial's morph into the photograph (set from JS) */
+  --r: 0; /* phase three: the handoff to the second clock (set from JS) */
+  --exit: 0; /* the first clock's run left, already eased in JS */
+  --enter: 0; /* the second clock's run in from the right, likewise */
+  --alloy: 0;
+
+  /* How far the first clock gets before it has gone. Deliberately short: it is
+     leaving by coming apart, not by travelling off the edge, and a long run would
+     have it dissolve somewhere that reads as arbitrary. The second comes in from
+     further out, because it has to be clear of the first when it appears. */
+  --clock-exit-x: 18vw;
+  --clock-enter-x: 34vw;
   --prob-bg: #f0f0ef;
   --prob-rule: #ebebeb;
 
@@ -15,11 +27,20 @@
   --clock-w: 62.5vw;
   --clock-scale-end: 0.4625;
   --clock-y-travel: 52.8; /* vh from centre to the entry position */
+  /* dvh the SETTLED clock sits above the stage centre. 0 on the frame, which puts
+     it dead centre; the phone block at the foot of this file lifts it, where the
+     dial is large enough that the geometric centre reads as low. Multiplied by --p
+     below, so it arrives with the travel instead of displacing the entry too. */
+  --clock-y-end: 0;
 
   position: relative;
   z-index: 1; /* above the fixed .motifs layer */
-  /* One viewport of travel for the transition, on top of the pinned stage. */
-  height: 200vh;
+  /* see the phone block at the foot of this file for the mobile geometry */
+  /* Three viewports of travel on top of the pinned stage: the first brings the
+     clock to the centre, the second holds it there while its dial turns into the
+     photograph, the third hands it over to the clock that replaces it. --p, --q and
+     --r run across one each. */
+  height: 400vh;
   background: transparent;
 }
 
@@ -141,9 +162,35 @@
      element. The percentages resolve against the unscaled box, so the centre stays
      pinned however far it has scaled. */
   transform: translate(-50%, -50%)
-    translateY(calc(var(--clock-y-travel) * 1dvh * (1 - var(--p))))
+    translateY(
+      calc(
+        (var(--clock-y-travel) * (1 - var(--p)) - var(--clock-y-end) * var(--p)) *
+          1dvh
+      )
+    )
+    translateX(calc(var(--exit) * var(--clock-exit-x) * -1))
     scale(calc(1 - (1 - var(--clock-scale-end)) * var(--p)));
   will-change: transform;
+}
+
+/* Both the leaving and the arriving clock are cut by the same kind of filter, and
+   both need a layer of their own to be cut on — without it the browser has nothing
+   to composite the mask against but the page. */
+.prob__clock {
+  filter: url(#clk-dissolve-one);
+}
+
+/* Lands on exactly the mark the first clock settled at: the same vertical offset and
+   the same scale, with only the approach on top. --p is 1 by the time any of this is
+   visible, so the first clock's own transform reduces to precisely these terms. */
+.prob__clock--two {
+  filter: url(#clk-dissolve-two);
+  /* Nothing to paint before the phase starts, and no filter to run either. */
+  opacity: clamp(0, calc(var(--r) * 40), 1);
+  transform: translate(-50%, -50%)
+    translateY(calc(var(--clock-y-end) * -1dvh))
+    translateX(calc((1 - var(--enter)) * var(--clock-enter-x)))
+    scale(var(--clock-scale-end));
 }
 
 /* --- the menu recess ---------------------------------------------------------
@@ -243,3 +290,123 @@
 .clock-bezel[data-metal="off"] {
   display: none;
 }
+
+/* --- Phones ------------------------------------------------------------------
+   Same 640px boundary as Hero.css and EdgeMotifs.css.
+
+   Both ends of the clock's travel are set from these two numbers, and they are
+   independent: --clock-w is the size it enters at, and multiplying by
+   --clock-scale-end gives the size it settles to. So the settled clock can be
+   raised on its own, which is all 0.7 does — at 444px the entry stays at 346px
+   while the clock it leaves you looking at goes to 243px, 55% of the screen. The
+   frame's own 62.5vw/0.4625 left both a token in a lot of empty page on a phone:
+   278px and 128px respectively.
+
+   --clock-y-travel is deliberately NOT touched. It is measured from the stage's
+   centre, so the entry position holds while the clock grows around it and simply
+   more of the face shows above the fold, which is the point of that frame. */
+@media (max-width: 640px) {
+  /* The navbar sits at a flat 10px inset down here (Nav.css), putting its bottom
+     edge at 10 + 52 + 2 = 64px. The frame's own 8.98vh puts this heading at 70px on
+     a small phone, which clears it by six — near enough to touching that the two
+     read as one block. Clear it by 30 instead. */
+  .prob__head {
+    padding-top: 94px;
+  }
+
+  .prob {
+    --clock-w: 78vw;
+    --clock-scale-end: 0.7;
+    /* Off the geometric centre by 5dvh. At this size the dial fills enough of the
+       screen that centring it by measurement reads as sitting low — the title above
+       it is a thin line and the space below it is empty, so the eye splits the
+       difference higher than the middle. */
+    --clock-y-end: 5;
+  }
+}
+
+/* --- the line under the clock ------------------------------------------------
+   Appears as the dial finishes becoming the photograph, not with it: the reveal
+   window starts at 45% of --q, so the image has already taken the dial before the
+   words arrive and the two read as one thing happening after another rather than
+   two things happening at once.
+
+   Anchored to the bottom of the stage rather than offset from the clock, because
+   the clock is fixed at the centre by then and the gap between them is whatever
+   the viewport leaves — which is what keeps this clear of the dial on a short
+   window without a media query. */
+.prob__foot {
+  --in: clamp(0, calc((var(--q) - 0.45) / 0.4), 1);
+
+  position: absolute;
+  left: 50%;
+  /* The frame puts the group's foot 141px up from the bottom edge (13.06vh), but
+     that was measured against a clock drawn smaller than this one settles to, and
+     at that height it crowds the dial. Dropped to 8.5vh, which holds the same
+     relationship to the bottom of the page at any viewport height. */
+  bottom: clamp(28px, 6.5vh, 84px);
+  z-index: 1;
+  width: min(560px, calc(100% - 2 * clamp(24px, 6vw, 80px)));
+  transform: translateX(-50%) translateY(calc((1 - var(--in)) * 18px));
+  opacity: var(--in);
+  text-align: center;
+  pointer-events: none;
+}
+
+.prob__foot-title {
+  margin: 0;
+  font-family: var(--font-display, "PP Pangaia", "Fraunces", Georgia, serif);
+  /* The frame's box is 45 units, the same as "The Problem" at the top of the
+     section. A step under that instead: set to match exactly it competed with the
+     heading rather than answering it. */
+  font-size: clamp(22px, 1.95vw, 44px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: #000000;
+  /* Set down, always. Done here rather than by lower-casing the strings so the copy
+     stays as it was written — which is what the screen reader is handed, and what
+     anyone editing it will expect to find. */
+  text-transform: lowercase;
+}
+
+/* Caps and tracked, like the subtitle at the top of the section. The layer name in
+   Figma is mixed case, which is only how the string was typed — the node itself is
+   set in caps.
+
+   The size comes off that: 34 characters at 0.16em tracking have to fit the 422 of
+   1920 the frame allots the line, and caps are about 0.62em wide in Inter, so
+   34F(0.62 + 0.16) = 422 puts F at roughly 16px — 0.833vw. Caps need a smaller
+   size than the sentence case did, not the same one. */
+.prob__foot-caption {
+  margin: clamp(5px, 0.65vh, 10px) 0 0;
+  font-family: var(--font-ui, "Inter", system-ui, sans-serif);
+  font-size: clamp(9.5px, 0.833vw, 18px);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #55554f;
+}
+
+@media (max-width: 640px) {
+  .prob__foot {
+    bottom: clamp(28px, 7vh, 72px);
+  }
+}
+
+/* Read out to assistive technology while the visible line is mid-scramble. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Nothing here fixes the letters' widths. The settled line is rendered as one
+   unsplit run (see MatrixText), so it keeps its own metrics and kerning; only the
+   churn is per-letter, and there it is free to breathe. */
