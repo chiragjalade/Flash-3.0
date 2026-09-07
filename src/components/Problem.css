@@ -5,17 +5,9 @@
 .prob {
   --p: 0; /* eased scroll progress through this section, 0 to 1 (set from JS) */
   --q: 0; /* phase two: the dial's morph into the photograph (set from JS) */
-  --r: 0; /* phase three: the handoff to the second clock (set from JS) */
-  --exit: 0; /* the first clock's run left, already eased in JS */
-  --enter: 0; /* the second clock's run in from the right, likewise */
+  --r: 0; /* phase three: the handover to the second photograph (set from JS) */
   --alloy: 0;
 
-  /* How far the first clock gets before it has gone. Deliberately short: it is
-     leaving by coming apart, not by travelling off the edge, and a long run would
-     have it dissolve somewhere that reads as arbitrary. The second comes in from
-     further out, because it has to be clear of the first when it appears. */
-  --clock-exit-x: 18vw;
-  --clock-enter-x: 34vw;
   --prob-bg: #f0f0ef;
   --prob-rule: #ebebeb;
 
@@ -168,63 +160,8 @@
           1dvh
       )
     )
-    translateX(calc(var(--exit) * var(--clock-exit-x) * -1))
     scale(calc(1 - (1 - var(--clock-scale-end)) * var(--p)));
   will-change: transform;
-}
-
-/* Both the leaving and the arriving clock are cut by the same kind of filter, and
-   both need a layer of their own to be cut on — without it the browser has nothing
-   to composite the mask against but the page. */
-.prob__clock {
-  filter: url(#clk-dissolve-one);
-}
-
-/* Lands on exactly the mark the first clock settled at: the same vertical offset and
-   the same scale, with only the approach on top. --p is 1 by the time any of this is
-   visible, so the first clock's own transform reduces to precisely these terms. */
-.prob__clock--two {
-  filter: url(#clk-dissolve-two);
-  /* Nothing to paint before the phase starts, and no filter to run either. */
-  opacity: clamp(0, calc(var(--r) * 40), 1);
-  transform: translate(-50%, -50%)
-    translateY(calc(var(--clock-y-end) * -1dvh))
-    translateX(calc((1 - var(--enter)) * var(--clock-enter-x)))
-    scale(var(--clock-scale-end));
-}
-
-/* --- the menu recess ---------------------------------------------------------
-   The clock pulls back from the viewer while the dropdown is down, the same move
-   and the same 0.94 the hero lockup and the edge motifs make — one gesture across
-   both pages rather than three that happen to coincide.
-
-   Its own element, and it has to be: .prob__clock's transform is rewritten from
-   --p on every scroll frame, so a `transition: transform` there would smear the
-   scroll travel as well; .clock-case's is set by the pointer handler and swaps to a
-   0.12s linear transition on hover, which would snap this instead of easing it.
-
-   Pivoted at its own centre, so the clock stays exactly where it settled and only
-   gets smaller. The asymmetric timings match Hero.css: opening waits a beat behind
-   the panel's fill so the recession reads as caused by the menu coming down, and
-   closing comes back a touch faster and without the delay so the clock is already
-   settling as the panel collapses. */
-.clock-recess {
-  --clock-recess: 0.94;
-  transform-origin: 50% 50%;
-  transition: transform 0.5s cubic-bezier(0.3, 0, 0.2, 1);
-}
-
-.prob[data-recessed] .clock-recess {
-  transform: scale(var(--clock-recess));
-  transition: transform 0.6s cubic-bezier(0.22, 0.61, 0.24, 1) 0.04s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clock-recess,
-  .prob[data-recessed] .clock-recess {
-    transition-duration: 0.01ms;
-    transition-delay: 0s;
-  }
 }
 
 /* --- the clock's case --------------------------------------------------------

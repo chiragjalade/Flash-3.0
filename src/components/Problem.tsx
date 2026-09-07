@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Clock from "./Clock";
-import Dissolve from "./Dissolve";
 import MatrixText from "./MatrixText";
-import { DIAL_IMAGE_TWO } from "./DialMorph";
 import ClockGlow, { type GlassLight } from "./ClockGlow";
 import MetalSurface from "./MetalSurface";
 import "./Problem.css";
@@ -61,10 +59,9 @@ const HANDOFF = {
   exit: [0.0, 0.55],
   /** ...and its coming apart, starting once it is already moving. */
   fade: [0.1, 0.5],
-  /** The second clock's approach from the right. Starts before the first has gone. */
+  /** The second photograph's approach from the right. Starts before the first has
+   *  finished leaving, so the two are on the dial together through the middle. */
   enter: [0.28, 0.88],
-  /** ...and its gathering out of the air, finished well before it lands. */
-  form: [0.28, 0.62],
   /** The metal changing, on the new clock and the ornaments together. */
   alloy: [0.3, 0.85],
   /** The line alternating over. Ends before `enter` does, so the text has settled
@@ -185,22 +182,15 @@ export default function Problem({
       // ornament layer, outside this section — same reason --prob-p is published.
       document.documentElement.style.setProperty("--prob-r", v.toFixed(4));
 
-      // Accelerating away: squared rather than linear, so it creeps off its mark and
-      // is moving fastest at the moment it stops being there to watch.
+      // Accelerating away: squared rather than linear, so the picture creeps off its
+      // mark and is moving fastest at the moment it stops being there to watch.
       const e1 = track(v, HANDOFF.exit);
-      section.style.setProperty("--exit", (e1 * e1).toFixed(4));
-      fadeOneRef.current = track(v, HANDOFF.fade);
+      outRef.current = e1 * e1;
 
-      // Decelerating in, which is the same curve read backwards — it arrives fast
-      // and settles rather than coasting in at a constant rate.
+      // Decelerating in, the same curve read backwards — it arrives fast and settles
+      // rather than coasting in at a constant rate.
       const e2 = track(v, HANDOFF.enter);
-      section.style.setProperty("--enter", (1 - (1 - e2) * (1 - e2)).toFixed(4));
-      // The dissolve runs the other way for the clock that is gathering.
-      formTwoRef.current = 1 - track(v, HANDOFF.form);
-      // Its dial is already the second image by the time it is solid enough to read;
-      // keyed to the phase rather than to nothing so the file is still only fetched
-      // once someone has scrolled this far.
-      morphTwoRef.current = clamp01(v / 0.28);
+      inRef.current = 1 - (1 - e2) * (1 - e2);
 
       alloyRef.current = track(v, HANDOFF.alloy);
       section.style.setProperty("--alloy", alloyRef.current.toFixed(4));
@@ -301,12 +291,12 @@ export default function Problem({
   const lightTwoRef = useRef<GlassLight>({ x: 0, y: 0, hover: 0 });
   // Phase two's progress, read by the dial's shader every frame it draws.
   const morphRef = useRef(0);
-  // Phase three. fadeOne takes the first clock apart, formTwo puts the second one
-  // together (so it counts DOWN as that clock gathers), alloy carries both the new
-  // bezel and the edge ornaments over, and swap runs the line over to its new copy.
-  const fadeOneRef = useRef(0);
-  const formTwoRef = useRef(1);
-  const morphTwoRef = useRef(0);
+  // Phase three. The clock itself does not move: `out` slides the first photograph
+  // off the dial and takes it apart, `in` brings the second across from the right,
+  // alloy carries the bezel and the edge ornaments over to the new metal, and swap
+  // runs the line under it over to its new copy.
+  const outRef = useRef(0);
+  const inRef = useRef(0);
   const ownAlloyRef = useRef(0);
   // The ornaments live outside this section, so their copy of the value is passed
   // down from App; this falls back to a local one when it is rendered without.
@@ -413,34 +403,17 @@ export default function Problem({
               hover tilt, set from the pointer handler. */}
           <div className="clock-recess">
             <div className="clock-case" ref={caseRef}>
-              <Clock epoch={clockEpoch} morphRef={morphRef} />
+              <Clock
+                epoch={clockEpoch}
+                morphRef={morphRef}
+                outRef={outRef}
+                inRef={inRef}
+              />
               {/* Above the dial's refraction, below the bezel: it is light on the
                   crystal, and the shader clips it to the dial. */}
               <ClockGlow className="clock-glow" lightRef={lightRef} />
               {/* Fades in with --p, so the bezel only turns to metal as the clock
                   shrinks toward the centre. */}
-              <MetalSurface
-                className="clock-bezel"
-                src={BEZEL_SRC}
-                artHeightShare={BEZEL_ART_SHARE}
-                bevelFrac={BEZEL_BEVEL}
-                trackPointer={false}
-                aria-hidden
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* The clock that takes over. Same component, its own image and a warm
-            bezel; it gathers out of the air on the right while the first is still
-            on its way off to the left, and lands on the mark the first one left.
-
-            It carries the same pointer tilt and its own light — see `bind` above. */}
-        <div className="prob__clock prob__clock--two">
-          <div className="clock-recess">
-            <div className="clock-case clock-case--two" ref={caseTwoRef}>
-              <Clock epoch={clockEpoch} morphRef={morphTwoRef} src={DIAL_IMAGE_TWO} />
-              <ClockGlow className="clock-glow" lightRef={lightTwoRef} />
               <MetalSurface
                 className="clock-bezel"
                 src={BEZEL_SRC}
@@ -453,13 +426,8 @@ export default function Problem({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* One filter per clock: they are at opposite ends of the same transition, so
-          a shared threshold would take them apart and put them together in lockstep
-          instead of one after the other. */}
-      <Dissolve id="clk-dissolve-one" amountRef={fadeOneRef} />
-      <Dissolve id="clk-dissolve-two" amountRef={formTwoRef} />
+      </div>
     </section>
   );
 }

@@ -74,18 +74,21 @@ export default function Clock({
   label = "QUANTHIVE",
   epoch = null,
   morphRef = null,
-  src,
+  outRef = null,
+  inRef = null,
 }: {
   label?: string;
   /** ms timestamp the clock runs from; null parks it on the 10:10 pose. */
   epoch?: number | null;
-  /** Which photograph this clock's dial becomes. Defaults to the first. */
-  src?: string;
   /**
    * How far the dial has turned into the photograph, 0 to 1, read every frame.
    * Omit it and the clock is just a clock.
    */
   morphRef?: { current: number } | null;
+  /** The first photograph sliding off to the left and coming apart. */
+  outRef?: { current: number } | null;
+  /** The second arriving from the right. */
+  inRef?: { current: number } | null;
 }) {
   const rootRef = useRef<SVGSVGElement>(null);
   // Held in a ref rather than an effect dependency: a reset should restart the
@@ -145,7 +148,20 @@ export default function Clock({
       aria-label="Analogue clock, running from the moment this section was reached"
     >
       <defs>
-        <linearGradient id="clk-bezel" x1="0.14" y1="0" x2="0.86" y2="1">
+        {/* Pinned to the viewBox rather than to whatever shape happens to use it.
+            The rim is drawn as a stroked ring now, and a bounding box takes its
+            size from the fill box — 952 across for the ring against 994 for the
+            disc it replaced — so a proportional gradient would have shifted its
+            bands the moment the shape changed. These are that same 0.14..0.86 of
+            the ORIGINAL box, written out. */}
+        <linearGradient
+          id="clk-bezel"
+          gradientUnits="userSpaceOnUse"
+          x1="142.2"
+          y1="3"
+          x2="857.8"
+          y2="997"
+        >
           <stop offset="0" stopColor="#7c7c7c" />
           <stop offset="0.22" stopColor="#2b2b2b" />
           <stop offset="0.55" stopColor="#0b0b0b" />
@@ -223,9 +239,14 @@ export default function Clock({
         </clipPath>
       </defs>
 
-      {/* bezel, then a dark lip, then the dial */}
-      <circle cx={C} cy={C} r="497" fill="url(#clk-bezel)" />
-      <circle cx={C} cy={C} r="455" fill="#0a0a0a" />
+      {/* The rim, as rings rather than filled discs. Both only ever read as a rim
+          because the dial covered their middles, and the bands they occupy — 455 to
+          497 for the bezel, 447 to 455 for the lip — are what they always appeared
+          to be. Drawn this way so neither depends on what is inside it. */}
+      <circle cx={C} cy={C} r="476" fill="none" stroke="url(#clk-bezel)" strokeWidth="42" />
+      <circle cx={C} cy={C} r="451" fill="none" stroke="#0a0a0a" strokeWidth="8" />
+
+      {/* The dial the photographs travel across. It stays put; they move. */}
       <circle cx={C} cy={C} r="447" fill="url(#clk-face)" />
       <circle cx={C} cy={C} r="447" fill="url(#clk-vignette)" />
 
@@ -241,9 +262,9 @@ export default function Clock({
           every frame inside it would re-run three displacement passes over the
           whole dial per frame for a distortion the eye cannot separate from the
           crystal highlights that already sit over the top of it. */}
-      {morphRef ? (
+      {morphRef && outRef && inRef ? (
         <foreignObject x="53" y="53" width="894" height="894">
-          <DialMorph qRef={morphRef} src={src} />
+          <DialMorph qRef={morphRef} outRef={outRef} inRef={inRef} />
         </foreignObject>
       ) : null}
 
