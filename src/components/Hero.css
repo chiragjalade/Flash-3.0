@@ -234,6 +234,25 @@
   }
 }
 
+/* --- Phones ------------------------------------------------------------------
+   640px is this page's one mobile boundary; Problem.css and EdgeMotifs.css use the
+   same number so the three move together.
+
+   The padding is what sets the lockup's width (see .hero__inner), and 6vw of it is
+   far too little down here: at 444px it left the mark 391px wide, 88% of the
+   viewport, running under the edge motifs on both sides. 16.5vw holds it at 67%
+   whatever the phone, which both reads as a mark rather than a banner and leaves
+   the motifs somewhere to be.
+
+   It is also what sets the clearance: the motifs are 27vw wide with half of each
+   off screen, so the gap is 16.5vw - 13.5vw = 3vw at every phone width. Raising
+   the marks means raising this in step, or they close back over the lockup. */
+@media (max-width: 640px) {
+  .hero {
+    --hero-pad: clamp(26px, 16.5vw, 106px);
+  }
+}
+
 /* --- Recessed while the menu is down ----------------------------------------
    The lockup and the caption each scale about their OWN centre, so both shrink in
    place and the gap between them is unchanged — they read as receding from the
