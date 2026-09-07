@@ -301,6 +301,31 @@
   mask-repeat: no-repeat;
 }
 
+/* --- Phones ------------------------------------------------------------------
+   Same 640px boundary as Hero.css, EdgeMotifs.css and Problem.css.
+
+   The panel is inset a flat 10px from the top and both sides and takes everything
+   left over, rather than being centred inside a 344px cap: on a phone that cap was
+   the binding term at every width, so the bar sat narrower than it needed to with
+   uneven space either side. The width has no floor here on purpose — 10px a side is
+   the brief, and the bar is made to fit whatever that leaves.
+
+   The bar still carries one label rather than three. Width is no longer what forces
+   that (at 360px the panel is now 340px, about what the full set needs), so it is a
+   deliberate trim: the other three are one tap away in the drawer, and three labels
+   crowded against the burger is not worth the room it would take. */
+@media (max-width: 640px) {
+  .nav {
+    --nav-gutter: 10px;
+    top: 10px;
+    width: calc(100% - 2 * var(--nav-gutter));
+  }
+
+  .nav__link:not([data-sm]) {
+    display: none;
+  }
+}
+
 /* Caps plus tracking cost noticeably more width than sentence case did, and on the
    narrowest phones the burger, three labels and the bar's padding stop fitting
    inside the panel — CONTACT ends up flush against the edge. Everything above 380px

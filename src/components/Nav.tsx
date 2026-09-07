@@ -4,13 +4,14 @@ import "./Nav.css";
 // Placeholder destinations — nothing routes yet, so these are buttons rather than
 // links with dead hrefs.
 //
-// `inBar` is why Team is not a fourth label up top: the bar's width is the panel's
-// 344px floor on every viewport under ~940px, and three uppercase labels plus the
-// burger already need ~330px of it. A fourth would run past the edge exactly the
-// way CONTACT did before the floor was raised. The drawer has no such limit.
+// `inBar` is why Team is not a fourth label up top: three uppercase labels plus the
+// burger already need ~330px, and a fourth would run past the panel edge. `inBarSm`
+// then cuts that to one on a phone, where three labels crowd the burger. Every item
+// is in the drawer either way, so nothing becomes unreachable — the bar is a
+// shortcut, not the navigation.
 const ITEMS = [
   { label: "Product", blurb: "Research, screening and backtests in one desk.", inBar: true },
-  { label: "About", blurb: "Who we are and how the models are built.", inBar: true },
+  { label: "About", blurb: "Who we are and how the models are built.", inBar: true, inBarSm: true },
   { label: "Team", blurb: "The people behind the research." },
   { label: "Contact", blurb: "Talk to us about access and pricing.", inBar: true },
 ];
@@ -71,7 +72,16 @@ export default function Nav({
 
             <div className="nav__links">
               {BAR_ITEMS.map((it) => (
-                <button type="button" className="nav__link" key={it.label}>
+                <button
+                  type="button"
+                  className="nav__link"
+                  // Marks the one label that survives the phone breakpoint. Done in
+                  // CSS rather than by measuring the viewport in JS: no listener, no
+                  // re-render on resize, and the bar is already correct on the very
+                  // first paint.
+                  data-sm={it.inBarSm || undefined}
+                  key={it.label}
+                >
                   {it.label}
                 </button>
               ))}
