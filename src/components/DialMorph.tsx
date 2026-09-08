@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { MORPH_FRAG, MORPH_VERT } from "../shaders/dialMorph";
-import { FIELD_SIZE, dialField } from "../lib/dialField";
+import { FIELD_SIZE, FIELD_PLANES, dialField } from "../lib/dialField";
 import "./DialMorph.css";
 
 // "image 1" of Figma frame 1894:44 and "image 2" of 1900:1079, each masked to an
@@ -8,6 +8,7 @@ import "./DialMorph.css";
 // filenames carry a space, and the asset route takes a single path segment.
 export const DIAL_IMAGE_ONE = "/images/dial-morph.png";
 export const DIAL_IMAGE_TWO = "/images/dial-morph-2.png";
+export const DIAL_IMAGE_THREE = "/images/dial-morph-3.png";
 
 // The backing store is fixed rather than measured. The host lives inside the SVG's
 // own coordinate space, so its layout size is a constant 894 units however large the
@@ -44,6 +45,8 @@ export default function DialMorph({
   qRef,
   outRef,
   inRef,
+  out2Ref,
+  in3Ref,
 }: {
   /** Phase two: the dial becoming the first photograph. */
   qRef: { current: number };
@@ -51,6 +54,10 @@ export default function DialMorph({
   outRef: { current: number };
   /** Phase three: the second arriving from the right and gathering. */
   inRef: { current: number };
+  /** Phase four: the second leaving the same way the first did. */
+  out2Ref: { current: number };
+  /** Phase four: the third arriving. */
+  in3Ref: { current: number };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -104,30 +111,41 @@ export default function DialMorph({
     const uQ = gl.getUniformLocation(program, "uQ");
     const uOut = gl.getUniformLocation(program, "uOut");
     const uIn = gl.getUniformLocation(program, "uIn");
+    const uOut2 = gl.getUniformLocation(program, "uOut2");
+    const uIn3 = gl.getUniformLocation(program, "uIn3");
     const uTime = gl.getUniformLocation(program, "uTime");
     const uImgAspect = gl.getUniformLocation(program, "uImgAspect");
     const uImg2Aspect = gl.getUniformLocation(program, "uImg2Aspect");
+    const uImg3Aspect = gl.getUniformLocation(program, "uImg3Aspect");
     gl.uniform1i(gl.getUniformLocation(program, "uImage"), 0);
     gl.uniform1i(gl.getUniformLocation(program, "uNoise"), 1);
     gl.uniform1i(gl.getUniformLocation(program, "uImage2"), 2);
+    gl.uniform1i(gl.getUniformLocation(program, "uImage3"), 3);
+    gl.uniform1i(gl.getUniformLocation(program, "uNoise2"), 4);
     gl.uniform1f(uImgAspect, 1);
     gl.uniform1f(uImg2Aspect, 1);
+    gl.uniform1f(uImg3Aspect, 1);
 
     // The dissolve threshold. Uploaded WITHOUT a flip and with row 0 at the bottom,
     // which is the orientation dialField bakes it in and the one fieldAt reads it
     // back in — so the stagger on the numerals lands on the same values.
-    const noiseTex = gl.createTexture();
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, noiseTex);
+    // RGB, not R8: each texture's three channels carry three independent fields, so
+    // one fetch gives three patterns and two textures cover all five transitions.
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    // RGB, not R8: the three channels carry three independent fields, so one fetch
-    // in the shader gives the arrival, the departure and the replacement their own.
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, FIELD_SIZE, FIELD_SIZE, 0, gl.RGB,
-      gl.UNSIGNED_BYTE, dialField());
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const planes = dialField();
+    const noiseTexes = planes.map((plane, i) => {
+      const t = gl.createTexture();
+      gl.activeTexture(i === 0 ? gl.TEXTURE1 : gl.TEXTURE4);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, FIELD_SIZE, FIELD_SIZE, 0, gl.RGB,
+        gl.UNSIGNED_BYTE, plane);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return t;
+    });
+    if (noiseTexes.length !== FIELD_PLANES) console.warn("dial morph: field planes");
     gl.activeTexture(gl.TEXTURE0);
 
     // One grey texel each to start on, so the first frames have something bound and
@@ -146,6 +164,7 @@ export default function DialMorph({
     };
     const tex = makeTex(gl.TEXTURE0);
     const tex2 = makeTex(gl.TEXTURE2);
+    const tex3 = makeTex(gl.TEXTURE3);
 
     let disposed = false;
     let raf = 0;
@@ -186,6 +205,8 @@ export default function DialMorph({
       gl.uniform1f(uQ, qRef.current);
       gl.uniform1f(uOut, outRef.current);
       gl.uniform1f(uIn, inRef.current);
+      gl.uniform1f(uOut2, out2Ref.current);
+      gl.uniform1f(uIn3, in3Ref.current);
       gl.uniform1f(uTime, (now - start) / 1000);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -205,6 +226,9 @@ export default function DialMorph({
         if (inRef.current > 0.0005 || outRef.current > 0.0005) {
           loadImage(DIAL_IMAGE_TWO, gl.TEXTURE2, tex2, uImg2Aspect);
         }
+        if (in3Ref.current > 0.0005 || out2Ref.current > 0.0005) {
+          loadImage(DIAL_IMAGE_THREE, gl.TEXTURE3, tex3, uImg3Aspect);
+        }
         draw(now);
         wasActive = true;
       } else if (wasActive) {
@@ -221,11 +245,12 @@ export default function DialMorph({
       cancelAnimationFrame(raf);
       gl.deleteTexture(tex);
       gl.deleteTexture(tex2);
-      gl.deleteTexture(noiseTex);
+      gl.deleteTexture(tex3);
+      for (const t of noiseTexes) gl.deleteTexture(t);
       gl.deleteBuffer(buf);
       gl.deleteProgram(program);
     };
-  }, [qRef, outRef, inRef]);
+  }, [qRef, outRef, inRef, out2Ref, in3Ref]);
 
   return <canvas className="clk__morph" ref={canvasRef} />;
 }

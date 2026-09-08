@@ -32,11 +32,15 @@ uniform sampler2D uImage;
 // The picture that replaces it. Its own sampler rather than a second pass, because
 // for most of the handover both are on the dial at once.
 uniform sampler2D uImage2;
+uniform sampler2D uImage3;
 // The dissolve threshold, baked in JS and uploaded (see lib/dialField.ts). Sampled
 // rather than computed here so the numerals and hands can be staggered against the
 // exact same values — two evaluations of the same noise, one at float32 on the GPU
 // and one at float64 in JS, do not agree past the first octave.
 uniform sampler2D uNoise;
+// The second plane of fields. Five transitions need five patterns nothing else has
+// used, and three channels only carry three.
+uniform sampler2D uNoise2;
 // 0 = the dial is untouched, 1 = the photograph has taken it completely.
 uniform float uQ;
 uniform float uTime;
@@ -44,12 +48,16 @@ uniform float uTime;
 // is cropped to cover rather than squashed to fit.
 uniform float uImgAspect;
 uniform float uImg2Aspect;
+uniform float uImg3Aspect;
 // The handover. uOut slides the first picture off to the left and takes it apart as
 // it goes; uIn brings the second in from the right and puts it together. Nothing
 // else on the clock moves — the rim, the numerals, the hands and the glass are all
 // where they were, and these two pictures travel through them.
 uniform float uOut;
 uniform float uIn;
+// ...and again, one picture later.
+uniform float uOut2;
+uniform float uIn3;
 
 // Half-width of the band between "still dial" and "now photograph", in units of the
 // noise field. Wide enough that the edge is a gradient rather than a cut, narrow
@@ -116,43 +124,65 @@ float inFrame(vec2 p) {
 void main() {
   vec2 uv = vUv;
 
-  // Three independent fields, one per channel — already stretched and remapped on
-  // the way in; see dialField.ts. One fetch, three patterns.
+  // Six independent fields across two planes, three to a texture — already stretched
+  // and remapped on the way in; see dialField.ts. Two fetches, six patterns.
   //
-  // They have to differ. Run the departure against the same field as the arrival and
-  // the picture leaves through exactly the tendrils it came in through, in the same
-  // order, which reads as the first morph playing again rather than as a handover.
-  vec3 n = texture(uNoise, uv).rgb;
+  // They have to differ. Run any transition against a field another has already used
+  // and the picture moves through exactly the tendrils that one did, in the same
+  // order, which reads as an earlier morph playing again rather than as something
+  // new. Inverting a field is not enough either — a negative of a pattern is still
+  // that pattern.
+  vec3 nA = texture(uNoise, uv).rgb;
+  vec3 nB = texture(uNoise2, uv).rgb;
 
-  float reveal = cut(n.r, uQ);
-  float rOut = cut(n.g, uOut);
-  float rIn = cut(n.b, uIn);
+  float reveal = cut(nA.r, uQ);   // the first picture arriving over the dial
+  float rOut = cut(nA.g, uOut);   // ...and leaving
+  float rIn = cut(nA.b, uIn);     // the second arriving
+  float rOut2 = cut(nB.r, uOut2); // ...and leaving
+  float rIn3 = cut(nB.g, uIn3);   // the third arriving
 
   // Peaks at the half-way point of each pixel's own transition and is zero at both
   // ends, so the warp exists only while that pixel is changing and leaves a settled
   // picture undistorted.
-  float busy = max(reveal * (1.0 - reveal), max(rOut * (1.0 - rOut), rIn * (1.0 - rIn)));
+  float busy = 0.0;
+  busy = max(busy, reveal * (1.0 - reveal));
+  busy = max(busy, rOut * (1.0 - rOut));
+  busy = max(busy, rIn * (1.0 - rIn));
+  busy = max(busy, rOut2 * (1.0 - rOut2));
+  busy = max(busy, rIn3 * (1.0 - rIn3));
   vec2 warp = vec2(
     turbulence(uv * 3.4 + 17.0) - 0.35,
     turbulence(uv * 3.4 + 43.0) - 0.35
   ) * 0.16 * 4.0 * busy;
 
-  // Sampling further right shows the picture further left, so uOut adds and uIn —
-  // which starts off to the right and comes back to nothing — subtracts.
-  vec2 uv1 = cover(uv + warp + vec2(uOut * SHIFT, 0.0), uImgAspect);
-  vec2 uv2 = cover(uv + warp - vec2((1.0 - uIn) * SHIFT, 0.0), uImg2Aspect);
+  // Where each picture sits, as a displacement to the right; sampling subtracts it,
+  // so a picture pushed left is sampled further right. The middle one carries both
+  // halves of its life: it comes in from the right, settles, and then leaves left.
+  float d1 = -uOut * SHIFT;
+  float d2 = (1.0 - uIn) * SHIFT - uOut2 * SHIFT;
+  float d3 = (1.0 - uIn3) * SHIFT;
+
+  vec2 uv1 = cover(uv + warp - vec2(d1, 0.0), uImgAspect);
+  vec2 uv2 = cover(uv + warp - vec2(d2, 0.0), uImg2Aspect);
+  vec2 uv3 = cover(uv + warp - vec2(d3, 0.0), uImg3Aspect);
 
   vec3 c1 = texture(uImage, clamp(uv1, 0.0, 1.0)).rgb;
   vec3 c2 = texture(uImage2, clamp(uv2, 0.0, 1.0)).rgb;
+  vec3 c3 = texture(uImage3, clamp(uv3, 0.0, 1.0)).rgb;
 
   float a1 = reveal * (1.0 - rOut) * inFrame(uv1);
-  float a2 = rIn * inFrame(uv2);
+  float a2 = rIn * (1.0 - rOut2) * inFrame(uv2);
+  float a3 = rIn3 * inFrame(uv3);
 
-  // The second picture over the first, in premultiplied terms and then divided back
-  // out — the canvas is not premultiplied, and compositing straight colour would
-  // darken every pixel the two of them share.
-  float outA = a1 * (1.0 - a2) + a2;
-  vec3 outC = c1 * a1 * (1.0 - a2) + c2 * a2;
+  // Each picture over the one before it, in premultiplied terms and then divided
+  // back out — the canvas is not premultiplied, and compositing straight colour
+  // would darken every pixel any two of them share.
+  float outA = a1;
+  vec3 outC = c1 * a1;
+  outA = outA * (1.0 - a2) + a2;
+  outC = outC * (1.0 - a2) + c2 * a2;
+  outA = outA * (1.0 - a3) + a3;
+  outC = outC * (1.0 - a3) + c3 * a3;
   outC = outA > 0.0001 ? outC / outA : vec3(0.0);
 
   // The dial is a circle in a square canvas. Feathering the rim here rather than

@@ -222,9 +222,17 @@
   /* Phase three's two windows, cut out of the handoff's own progress. The green
      starts while the grey is still leaving — the brief is that one goes as the other
      comes, not one after the other — and finishes at 0.85, just before the second
-     clock lands at 0.88. */
+     clock lands at 0.88.
+
+     Phase four repeats them verbatim against --prob-s. The two handoffs are the same
+     gesture on the same geometry, so they get the same numbers rather than a second
+     set tuned to look like the first; HANDOFF_2 in Problem.tsx is the same object as
+     HANDOFF for exactly this reason, and the clocks either side of these lines are
+     already moving on those windows. */
   --line-out: clamp(0, calc((var(--prob-r, 0) - 0.02) / 0.48), 1);
   --line-in: clamp(0, calc((var(--prob-r, 0) - 0.2) / 0.65), 1);
+  --line-out-2: clamp(0, calc((var(--prob-s, 0) - 0.02) / 0.48), 1);
+  --line-in-3: clamp(0, calc((var(--prob-s, 0) - 0.2) / 0.65), 1);
 }
 
 /* Shared by both strokes. Paint and weight are deliberately NOT here: a rule on
@@ -263,8 +271,11 @@
 /* A little heavier than the stroke it replaces, and the paint comes from the
    gradient on the element. At 1px the line is nearly all partial coverage and its
    colour never really lands; the extra weight is what lets the green be green
-   rather than a grey suggestion of it. */
-.motif-line .motif-line__ocean {
+   rather than a grey suggestion of it. The beige matches it — from here on the line
+   is only changing material, and a change of weight would read as a change of
+   drawing. */
+.motif-line .motif-line__ocean,
+.motif-line .motif-line__sand {
   stroke-width: 1.7;
 }
 
@@ -292,13 +303,35 @@
 
 /* The replacement, drawing on exactly as the first one did — left from its bottom
    end, right from its top — so the handover is the same move twice rather than two
-   different ones. */
+   different ones. Then, in phase four, it leaves the way the grey did: the offset
+   carries on PAST its own end in the same direction instead of rewinding, so the
+   drawn segment runs off by the far end rather than retracing itself.
+
+   Both terms live in one declaration because they are one number — where the dash
+   currently sits along the path. (1 - --line-in) walks it on; --line-out-2 walks it
+   the rest of the way off. */
 .motif-line--left .motif-line__ocean {
-  stroke-dashoffset: calc(-1 * var(--motif-line-len) * (1 - var(--line-in)));
+  stroke-dashoffset: calc(
+    var(--motif-line-len) * (var(--line-out-2) - (1 - var(--line-in)))
+  );
 }
 
 .motif-line--right .motif-line__ocean {
-  stroke-dashoffset: calc(var(--motif-line-len) * (1 - var(--line-in)));
+  stroke-dashoffset: calc(
+    var(--motif-line-len) * ((1 - var(--line-in)) - var(--line-out-2))
+  );
+}
+
+/* And the beige draws on over the top of that, off the phase-four window, in the
+   same direction from the same end. It is painted last so that wherever the two
+   overlap mid-handover the new material is the one showing — the same order the
+   green sits in over the grey. */
+.motif-line--left .motif-line__sand {
+  stroke-dashoffset: calc(-1 * var(--motif-line-len) * (1 - var(--line-in-3)));
+}
+
+.motif-line--right .motif-line__sand {
+  stroke-dashoffset: calc(var(--motif-line-len) * (1 - var(--line-in-3)));
 }
 
 @media (prefers-reduced-motion: reduce) {

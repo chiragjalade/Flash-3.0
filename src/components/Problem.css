@@ -6,6 +6,7 @@
   --p: 0; /* eased scroll progress through this section, 0 to 1 (set from JS) */
   --q: 0; /* phase two: the dial's morph into the photograph (set from JS) */
   --r: 0; /* phase three: the handover to the second photograph (set from JS) */
+  --s: 0; /* phase four: the same again, to the third (set from JS) */
   --alloy: 0;
 
   --prob-bg: #f0f0ef;
@@ -30,9 +31,9 @@
   /* see the phone block at the foot of this file for the mobile geometry */
   /* Three viewports of travel on top of the pinned stage: the first brings the
      clock to the centre, the second holds it there while its dial turns into the
-     photograph, the third hands it over to the clock that replaces it. --p, --q and
-     --r run across one each. */
-  height: 400vh;
+     photograph, and the last two hand that picture on to the next one and then the
+     one after. --p, --q, --r and --s run across one each. */
+  height: 500vh;
   background: transparent;
 }
 

@@ -26,19 +26,23 @@ const NBSP = " ";
  * set it properly is not to cut it up. So it is whole at both ends, and in pieces
  * only while it is moving, where nobody is reading it and the churn hides the seams.
  *
- * The two strings are also centred against each other rather than left-aligned
- * during the churn: padding the shorter one entirely at its end leaves the visible
- * text sitting off to one side by half the difference in length.
+ * Every string is centred against the others rather than left-aligned during the
+ * churn: padding the shorter ones entirely at their ends leaves the visible text
+ * sitting off to one side by half the difference in length.
  */
 export default function MatrixText({
-  from,
-  to,
+  steps,
   progressRef,
   className,
 }: {
-  from: string;
-  to: string;
-  /** 0 = entirely `from`, 1 = entirely `to`. Read every frame. */
+  /** The copy this line passes through, in order. Two or more. */
+  steps: string[];
+  /**
+   * Distance along `steps`, read every frame: 0 is the first, 1 the second, 2 the
+   * third. A whole number is a resting state, anything between is a churn. Written
+   * this way rather than as one 0..1 so a step can be added without rescaling what
+   * drives it.
+   */
   progressRef: { current: number };
   className?: string;
 }) {
@@ -52,15 +56,16 @@ export default function MatrixText({
     const sr = srRef.current;
     if (!plain || !split || !sr) return;
 
-    const len = Math.max(from.length, to.length);
-    const offA = Math.floor((len - from.length) / 2);
-    const offB = Math.floor((len - to.length) / 2);
-    const charA = (i: number) => from[i - offA] ?? " ";
-    const charB = (i: number) => to[i - offB] ?? " ";
+    // One span array wide enough for the longest of them, with every string centred
+    // in it, so the line never jumps sideways between steps.
+    const len = Math.max(...steps.map((t) => t.length));
+    const offset = steps.map((t) => Math.floor((len - t.length) / 2));
+    const charAt = (step: number, i: number) =>
+      steps[step]![i - offset[step]!] ?? " ";
 
     // Only glyphs the line already contains, so the churn is never wider or narrower
     // in character than the text on either side of it.
-    const pool = [...new Set((from + to).replace(/\s/g, "").split(""))];
+    const pool = [...new Set(steps.join("").replace(/\s/g, "").split(""))];
 
     const spans: HTMLSpanElement[] = [];
     split.textContent = "";
@@ -90,28 +95,34 @@ export default function MatrixText({
     };
 
     const tick = (now: number) => {
-      const p = progressRef.current;
+      const raw = Math.max(0, Math.min(steps.length - 1, progressRef.current));
+      // Which pair of strings is in play, and how far between them. Clamped one short
+      // of the end so arriving exactly at the last step reads as that step settled
+      // rather than as the start of a transition that does not exist.
+      const seg = Math.min(steps.length - 2, Math.floor(raw));
+      const p = raw - seg;
 
       if (p <= 0.0005) {
-        show("plain", from);
+        show("plain", steps[seg]!);
         raf = requestAnimationFrame(tick);
         return;
       }
       if (p >= 0.9995) {
-        show("plain", to);
+        show("plain", steps[seg + 1]!);
         raf = requestAnimationFrame(tick);
         return;
       }
       show("split");
-      if (sr.textContent !== (p >= 0.5 ? to : from)) sr.textContent = p >= 0.5 ? to : from;
+      const reading = p >= 0.5 ? steps[seg + 1]! : steps[seg]!;
+      if (sr.textContent !== reading) sr.textContent = reading;
 
       if (now - lastChurn > 1000 / CHURN_HZ) {
         lastChurn = now;
         churnSeed++;
       }
       for (let i = 0; i < len; i++) {
-        const a = charA(i);
-        const b = charB(i);
+        const a = charAt(seg, i);
+        const b = charAt(seg + 1, i);
         const span = spans[i]!;
         let ch: string;
         if (a === b) {
@@ -138,7 +149,9 @@ export default function MatrixText({
     raf = requestAnimationFrame(tick);
 
     return () => cancelAnimationFrame(raf);
-  }, [from, to, progressRef]);
+    // Joined rather than passed as an array: a literal in the caller is a new array
+    // every render, which would tear this down and rebuild it sixty times a second.
+  }, [steps.join("\u0000"), progressRef]);
 
   return (
     <span className={className}>

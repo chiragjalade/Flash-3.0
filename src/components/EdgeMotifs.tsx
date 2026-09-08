@@ -81,6 +81,16 @@ function BorderLine({ side }: { side: "left" | "right" }) {
           <stop offset="0.82" stopColor="#23917a" />
           <stop offset="1" stopColor="#49bda4" />
         </linearGradient>
+        {/* SANDSTONE the same way — the same warm ramp held at the green's own
+            luminance, so the line changes material without changing weight. */}
+        <linearGradient id={`motif-line-sand-${side}`} x1="0" y1="0" x2="0.42" y2="1">
+          <stop offset="0" stopColor="#837b6a" />
+          <stop offset="0.22" stopColor="#d8cfb8" />
+          <stop offset="0.44" stopColor="#8a8270" />
+          <stop offset="0.63" stopColor="#cdc1a9" />
+          <stop offset="0.82" stopColor="#867e6c" />
+          <stop offset="1" stopColor="#bcb099" />
+        </linearGradient>
       </defs>
       {/* The right-hand node in Figma is this same path mirrored. Flipping it here
           rather than shipping a second `d` keeps one copy of the exported vector,
@@ -94,6 +104,16 @@ function BorderLine({ side }: { side: "left" | "right" }) {
           className="motif-line__ocean"
           d={BORDER_LINE}
           stroke={`url(#motif-line-ocean-${side})`}
+        />
+        {/* And a third, on the same terms as the second: the green runs off by the
+            far end while this draws itself on from the near one, over the same
+            windows and in the same direction. Two handovers, one gesture — the
+            line is replaced the same way each time rather than being drawn once
+            and then merely repainted. */}
+        <path
+          className="motif-line__sand"
+          d={BORDER_LINE}
+          stroke={`url(#motif-line-sand-${side})`}
         />
       </g>
     </svg>

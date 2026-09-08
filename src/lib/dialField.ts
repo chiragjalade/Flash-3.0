@@ -15,7 +15,7 @@
 // field would need the element colours recomputed every frame to stay matched. It is
 // static, and the transition is short and scroll-driven, so nothing is lost.
 
-export const FIELD_SIZE = 384;
+export const FIELD_SIZE = 320;
 
 /**
  * Three independent fields, packed one per colour channel.
@@ -32,10 +32,18 @@ export const FIELD_SIZE = 384;
  */
 export const FIELD_CHANNELS = 3;
 
-// Where each channel starts in the noise domain. Far enough apart that no two share
+/** Two RGB textures' worth. There are five transitions across the page — one
+ *  picture arriving, then each of the next two replacing the one before it — and
+ *  every one of them needs a pattern nothing else has used. Six is what two textures
+ *  of three channels comes to; the spare costs one sixth of the bake and saves
+ *  restructuring this the next time a picture is added. */
+export const FIELD_PLANES = 2;
+const TOTAL_FIELDS = FIELD_PLANES * FIELD_CHANNELS;
+
+// Where each field starts in the noise domain. Far enough apart that no two share
 // any structure — the noise repeats on no scale, but neighbouring windows of it
 // still rhyme.
-const CHANNEL_ORIGIN = [0, 37.1, 91.7];
+const CHANNEL_ORIGIN = [0, 37.1, 91.7, 154.3, 233.9, 311.5];
 
 // Domain units across the dial. Sets the size of the tendrils: lower and the image
 // arrives in a few broad tongues, higher and it dissolves in as noise.
@@ -89,19 +97,24 @@ const smoothstep = (e0: number, e1: number, v: number) => {
   return t * t * (3 - 2 * t);
 };
 
-let cache: Uint8Array | null = null;
+let cache: Uint8Array[] | null = null;
 
 /**
  * The field as one byte per texel, row 0 at the BOTTOM — the orientation a WebGL
  * texture is sampled in, so it can be uploaded without a flip and read back here
  * with the same coordinates the shader uses.
  */
-export function dialField(): Uint8Array {
+export function dialField(): Uint8Array[] {
   if (cache) return cache;
   const count = FIELD_SIZE * FIELD_SIZE;
-  const data = new Uint8Array(count * FIELD_CHANNELS);
+  const planes = Array.from(
+    { length: FIELD_PLANES },
+    () => new Uint8Array(count * FIELD_CHANNELS),
+  );
 
-  for (let c = 0; c < FIELD_CHANNELS; c++) {
+  for (let c = 0; c < TOTAL_FIELDS; c++) {
+    const data = planes[Math.floor(c / FIELD_CHANNELS)]!;
+    const channel = c % FIELD_CHANNELS;
     const o = CHANNEL_ORIGIN[c]!;
     const raw = new Float32Array(count);
     let sum = 0;
@@ -132,11 +145,11 @@ export function dialField(): Uint8Array {
     const lo = mean - 1.35 * sd;
     const hi = mean + 1.35 * sd;
     for (let i = 0; i < count; i++) {
-      data[i * FIELD_CHANNELS + c] = Math.round(smoothstep(lo, hi, raw[i]!) * 255);
+      data[i * FIELD_CHANNELS + channel] = Math.round(smoothstep(lo, hi, raw[i]!) * 255);
     }
   }
-  cache = data;
-  return data;
+  cache = planes;
+  return planes;
 }
 
 /**
@@ -144,7 +157,7 @@ export function dialField(): Uint8Array {
  * `u` and `v` are 0..1 across the dial with v = 0 at the BOTTOM.
  */
 export function fieldAt(u: number, v: number): number {
-  const data = dialField();
+  const data = dialField()[0]!;
   const x = Math.min(1, Math.max(0, u)) * (FIELD_SIZE - 1);
   const y = Math.min(1, Math.max(0, v)) * (FIELD_SIZE - 1);
   const x0 = Math.floor(x);
@@ -180,7 +193,7 @@ export function fieldDataURL(): string {
   canvas.height = FIELD_SIZE;
   const ctx = canvas.getContext("2d")!;
   const img = ctx.createImageData(FIELD_SIZE, FIELD_SIZE);
-  const field = dialField();
+  const field = dialField()[0]!;
   for (let i = 0; i < FIELD_SIZE * FIELD_SIZE; i++) {
     const v = field[i * FIELD_CHANNELS]!;
     img.data[i * 4] = v;

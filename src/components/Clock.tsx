@@ -76,6 +76,8 @@ export default function Clock({
   morphRef = null,
   outRef = null,
   inRef = null,
+  out2Ref = null,
+  in3Ref = null,
 }: {
   label?: string;
   /** ms timestamp the clock runs from; null parks it on the 10:10 pose. */
@@ -89,6 +91,10 @@ export default function Clock({
   outRef?: { current: number } | null;
   /** The second arriving from the right. */
   inRef?: { current: number } | null;
+  /** The second leaving, a picture later. */
+  out2Ref?: { current: number } | null;
+  /** The third arriving. */
+  in3Ref?: { current: number } | null;
 }) {
   const rootRef = useRef<SVGSVGElement>(null);
   // Held in a ref rather than an effect dependency: a reset should restart the
@@ -262,9 +268,15 @@ export default function Clock({
           every frame inside it would re-run three displacement passes over the
           whole dial per frame for a distortion the eye cannot separate from the
           crystal highlights that already sit over the top of it. */}
-      {morphRef && outRef && inRef ? (
+      {morphRef && outRef && inRef && out2Ref && in3Ref ? (
         <foreignObject x="53" y="53" width="894" height="894">
-          <DialMorph qRef={morphRef} outRef={outRef} inRef={inRef} />
+          <DialMorph
+            qRef={morphRef}
+            outRef={outRef}
+            inRef={inRef}
+            out2Ref={out2Ref}
+            in3Ref={in3Ref}
+          />
         </foreignObject>
       ) : null}
 

@@ -353,6 +353,21 @@ export const OCEAN = {
   brush: 0.18,
 };
 
+/** Dark beige cut with dark grey — the warmth held right down so it reads as a
+ *  material rather than as a colour. Chroma is the lowest of any preset here on
+ *  purpose: at anything higher the beige turns to tan and stops being subtle, which
+ *  is the whole of the brief for it. Reached last, as the third picture arrives. */
+export const SANDSTONE = {
+  ...STAINLESS,
+  baseColor: [0.47, 0.45, 0.4] as const,
+  highlight: [0.92, 0.89, 0.815] as const,
+  chroma: 0.09,
+  sheen: 0.5,
+  roughness: 0.46,
+  specIntensity: 0.44,
+  brush: 0.22,
+};
+
 type Alloy = Omit<typeof STAINLESS, "baseColor" | "highlight"> & {
   baseColor: readonly number[];
   highlight: readonly number[];
@@ -380,20 +395,31 @@ function blend(a: Alloy, b: Alloy, t: number) {
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
+/** The alloys the page walks through, in order. `alloy` is a distance along this
+ *  chain rather than a fraction: 0 is where the tone left it, 1 is OCEAN, 2 is
+ *  SANDSTONE. Adding a fourth picture means appending one preset here. */
+const CHAIN = [OCEAN, SANDSTONE];
+
+/** How far the alloy axis can travel — the number of stops in the chain. */
+export const ALLOY_STOPS = CHAIN.length;
+
 /**
  * The material at a point on both axes: `tone` darkens STAINLESS to GRAPHITE as the
- * hero scrolls off, `alloy` carries whatever that produced over to OCEAN as the
- * second clock arrives.
+ * hero scrolls off, `alloy` then walks whatever that produced along the chain above.
  *
- * Applied in that order on purpose. Changing alloy first and then darkening would
- * give a muddy grey-green at any point where both are part-way; darkening first and
- * then changing keeps the far end reading as the alloy whatever the tone underneath.
+ * Tone is applied first on purpose. Changing alloy first and then darkening would
+ * give a muddy version of every stop at any point where both are part-way; darkening
+ * first keeps the far end reading as the alloy whatever the tone underneath it.
  *
  * The axis is named for its job rather than its colour — it has already been gold
- * once, and a `goldRef` holding a green is the kind of name that costs someone an
- * afternoon later.
+ * and then green, and a `goldRef` holding a beige is the kind of name that costs
+ * someone an afternoon later.
  */
 export function material(tone: number, alloy = 0) {
-  const base = blend(STAINLESS, GRAPHITE, clamp01(tone));
-  return alloy > 0 ? blend(base, OCEAN, clamp01(alloy)) : base;
+  let m: Alloy = blend(STAINLESS, GRAPHITE, clamp01(tone));
+  for (let i = 0; i < CHAIN.length; i++) {
+    const t = clamp01(alloy - i);
+    if (t > 0) m = blend(m, CHAIN[i]!, t);
+  }
+  return m;
 }

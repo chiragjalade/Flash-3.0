@@ -44,6 +44,13 @@ const FOOT_CAPTION = "Endless Sources. Endless Research."; // 1895:986
 const FOOT_TITLE_2 = "Markets Don’t Wait.";
 const FOOT_CAPTION_2 = "The Market Never Pauses";
 
+// Frame after that, as the third picture arrives.
+const FOOT_TITLE_3 = "alpha doesn’t wait";
+const FOOT_CAPTION_3 = "delay the decision. lose the edge.";
+
+const FOOT_TITLES = [FOOT_TITLE, FOOT_TITLE_2, FOOT_TITLE_3];
+const FOOT_CAPTIONS = [FOOT_CAPTION, FOOT_CAPTION_2, FOOT_CAPTION_3];
+
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
 /**
@@ -65,9 +72,18 @@ const HANDOFF = {
   /** The metal changing, on the new clock and the ornaments together. */
   alloy: [0.3, 0.85],
   /** The line alternating over. Ends before `enter` does, so the text has settled
-   *  by the time the clock reaches its mark. */
+   *  before the picture has. */
   swap: [0.18, 0.78],
 } as const;
+
+/**
+ * Phase four repeats phase three against the next picture: the second leaves the way
+ * the first did, the third arrives the way the second did, the metal takes its next
+ * stop and the line runs on to its last copy. The windows are the same shape because
+ * it is the same move — reusing HANDOFF here rather than restating it is what keeps
+ * the two reading as one repeated gesture instead of two similar ones.
+ */
+const HANDOFF_2 = HANDOFF;
 
 const track = (v: number, w: readonly [number, number]) => clamp01((v - w[0]) / (w[1] - w[0]));
 
@@ -115,6 +131,14 @@ export default function Problem({
     // Phase three: the handoff from the first clock to the second.
     let curR = 0;
     let targetR = 0;
+    // Phase four: the same handover again, one picture further on.
+    let curS = 0;
+    let targetS = 0;
+    // Each phase's own contribution to the two chained tracks; see writeChain.
+    let alloyOne = 0;
+    let alloyTwo = 0;
+    let swapOne = 0;
+    let swapTwo = 0;
     let running = false;
     let inside = false;
     // Second eased track: how far the hero has been scrolled off, 0 to 1. The
@@ -142,6 +166,7 @@ export default function Problem({
       target = clamp01(scrolled / vh);
       targetQ = clamp01((scrolled - vh) / vh);
       targetR = clamp01((scrolled - 2 * vh) / vh);
+      targetS = clamp01((scrolled - 3 * vh) / vh);
 
       targetV = Math.min(1, Math.max(0, 1 - rect.top / window.innerHeight));
 
@@ -192,9 +217,32 @@ export default function Problem({
       const e2 = track(v, HANDOFF.enter);
       inRef.current = 1 - (1 - e2) * (1 - e2);
 
-      alloyRef.current = track(v, HANDOFF.alloy);
+      alloyOne = track(v, HANDOFF.alloy);
+      swapOne = track(v, HANDOFF.swap);
+      writeChain();
+    };
+
+    const writeS = (v: number) => {
+      curS = v;
+      section.style.setProperty("--s", v.toFixed(4));
+      document.documentElement.style.setProperty("--prob-s", v.toFixed(4));
+
+      const e1 = track(v, HANDOFF_2.exit);
+      out2Ref.current = e1 * e1;
+      const e2 = track(v, HANDOFF_2.enter);
+      in3Ref.current = 1 - (1 - e2) * (1 - e2);
+
+      alloyTwo = track(v, HANDOFF_2.alloy);
+      swapTwo = track(v, HANDOFF_2.swap);
+      writeChain();
+    };
+
+    // The alloy walks a chain of stops and the line walks a chain of copy, so both
+    // are the SUM of what each phase has contributed rather than either one alone.
+    const writeChain = () => {
+      alloyRef.current = alloyOne + alloyTwo;
       section.style.setProperty("--alloy", alloyRef.current.toFixed(4));
-      swapRef.current = track(v, HANDOFF.swap);
+      swapRef.current = swapOne + swapTwo;
     };
 
     // Darkens as the hero scrolls off, then lights back up across the section's
@@ -222,17 +270,20 @@ export default function Problem({
       write(next);
       writeQ(curQ + (targetQ - curQ) * k);
       writeR(curR + (targetR - curR) * k);
+      writeS(curS + (targetS - curS) * k);
       writeTone(curV, next);
       if (
         Math.abs(target - next) < 0.0004 &&
         Math.abs(targetV - curV) < 0.0004 &&
         Math.abs(targetQ - curQ) < 0.0004 &&
-        Math.abs(targetR - curR) < 0.0004
+        Math.abs(targetR - curR) < 0.0004 &&
+        Math.abs(targetS - curS) < 0.0004
       ) {
         curV = targetV;
         write(target);
         writeQ(targetQ);
         writeR(targetR);
+        writeS(targetS);
         writeTone(curV, target);
         raf = 0;
         running = false;
@@ -249,6 +300,7 @@ export default function Problem({
         write(target);
         writeQ(targetQ);
         writeR(targetR);
+        writeS(targetS);
         writeTone(curV, target);
         return;
       }
@@ -263,6 +315,7 @@ export default function Problem({
     write(target);
     writeQ(targetQ);
     writeR(targetR);
+    writeS(targetS);
     writeTone(curV, target);
     window.addEventListener("scroll", kick, { passive: true });
     window.addEventListener("resize", kick);
@@ -272,6 +325,7 @@ export default function Problem({
       // Published outside this section, so it has to be taken back by hand.
       document.documentElement.style.removeProperty("--prob-p");
       document.documentElement.style.removeProperty("--prob-r");
+      document.documentElement.style.removeProperty("--prob-s");
       window.removeEventListener("scroll", kick);
       window.removeEventListener("resize", kick);
     };
@@ -297,6 +351,8 @@ export default function Problem({
   // runs the line under it over to its new copy.
   const outRef = useRef(0);
   const inRef = useRef(0);
+  const out2Ref = useRef(0);
+  const in3Ref = useRef(0);
   const ownAlloyRef = useRef(0);
   // The ornaments live outside this section, so their copy of the value is passed
   // down from App; this falls back to a local one when it is rendered without.
@@ -380,17 +436,17 @@ export default function Problem({
             {/* Paints the page ground back over the letters — see the SVG. */}
             <span className="prob__strike" aria-hidden />
           </h2>
-          <p className="prob__sub">Time is precious</p>
+          <p className="prob__sub">In Finance, Speed Is an Edge</p>
         </div>
 
         {/* Arrives under the clock as the dial finishes turning into the
             photograph — see --q, and the reveal window in Problem.css. */}
         <div className="prob__foot">
           <p className="prob__foot-title">
-            <MatrixText from={FOOT_TITLE} to={FOOT_TITLE_2} progressRef={swapRef} />
+            <MatrixText steps={FOOT_TITLES} progressRef={swapRef} />
           </p>
           <p className="prob__foot-caption">
-            <MatrixText from={FOOT_CAPTION} to={FOOT_CAPTION_2} progressRef={swapRef} />
+            <MatrixText steps={FOOT_CAPTIONS} progressRef={swapRef} />
           </p>
         </div>
 
@@ -408,6 +464,8 @@ export default function Problem({
                 morphRef={morphRef}
                 outRef={outRef}
                 inRef={inRef}
+                out2Ref={out2Ref}
+                in3Ref={in3Ref}
               />
               {/* Above the dial's refraction, below the bezel: it is light on the
                   crystal, and the shader clips it to the dial. */}
