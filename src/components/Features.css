@@ -168,10 +168,10 @@
    the photograph completely and carries the layer's white wash itself, so the <img>
    beneath is only what shows if WebGL2 is missing.
 
-   The canvas is 1600x1000 whatever size it is drawn at: everything the shader
-   measures is in input pixels, so it has to run in the frame's own coordinate space
-   — see CenterGlass. Stretching the result is free; re-deriving it at the element's
-   size would be a different effect. */
+   The canvas is a fixed size whatever it is drawn at: everything the shader measures
+   is in input pixels, so it has to run in the frame's own coordinate space — see
+   CenterGlass. Stretching the result is free; re-deriving it at the element's size
+   would be a different effect. */
 .feat__center-glass {
   position: absolute;
   inset: 0;

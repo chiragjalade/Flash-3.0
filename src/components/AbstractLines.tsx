@@ -17,15 +17,19 @@ import "./AbstractLines.css";
  * because this is a fixed sibling of that section rather than a child and there is
  * no other element both can see.
  *
- * Geometry: four vertical hairlines that all touch one horizontal edge of the screen
- * and reach different distances in from it — 206, 259, 326 and 416 of 1080, getting
- * longer as they move inward. The frame draws one group and re-uses it three times:
- * flipped vertically for the top, and the pair mirrored horizontally for the right.
- * One table serves all sixteen here too; writing the mirrors out by hand is how a
- * stray number in one corner survives every review of the other three.
+ * Geometry: vertical hairlines that all touch one horizontal edge of the screen and
+ * reach different distances in from it — 206, 259 and 326 of 1080, getting longer as
+ * they move inward. The frame draws one group and re-uses it three times: flipped
+ * vertically for the top, and the pair mirrored horizontally for the right. One
+ * table serves all of them here too; writing the mirrors out by hand is how a stray
+ * number in one corner survives every review of the other three.
+ *
+ * The frame has a fourth in each group, at x=279.5 and a full 416 long. It is left
+ * out: it is the one that reaches furthest in, and at the centre area's width it
+ * crowds the panel rather than framing it.
  */
-const LINE_X = [37.5, 124.5, 206.5, 279.5].map((x) => (x / 1920) * 100);
-const LINE_LEN = [206, 259, 326, 416].map((h) => (h / 1080) * 100);
+const LINE_X = [37.5, 124.5, 206.5].map((x) => (x / 1920) * 100);
+const LINE_LEN = [206, 259, 326].map((h) => (h / 1080) * 100);
 
 /** Group order is the frame's own numbering — "abstract lines 1" is the bottom
  *  left, 2 the top left, 3 the top right, 4 the bottom right — and that is the
@@ -54,7 +58,15 @@ const LINES = GROUPS.flatMap((group, g) =>
 
 export default function AbstractLines() {
   return (
-    <div className="abstract-lines" aria-hidden>
+    <div
+      className="abstract-lines"
+      // The stagger divides the window by the number of gaps between strokes, and
+      // that has to follow the table above rather than be restated in the CSS —
+      // dropping a line from each group and leaving a stale divisor behind is how
+      // the last stroke quietly stops finishing on time.
+      style={{ "--n-max": LINES.length - 1 } as CSSProperties}
+      aria-hidden
+    >
       {LINES.map((l) => (
         <span key={l.key} className="abstract-line" style={l.style} />
       ))}

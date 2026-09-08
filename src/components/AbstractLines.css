@@ -27,13 +27,13 @@
   /* 1722:127's own stroke. */
   background: #c5c5c5;
 
-  /* Its own slice of the window. Sixteen strokes, each starting before the last has
-     finished, so they read as a sequence rather than as a queue that stalls between
-     entries. --n is the stroke's index, written from the markup; the divisor is one
-     less than the count, so the first starts at 0 and the last finishes exactly at
-     1. */
+  /* Its own slice of the window. Each stroke starts before the last has finished, so
+     they read as a sequence rather than as a queue that stalls between entries. --n
+     is the stroke's index and --n-max the number of gaps, both written from the
+     markup, so the first starts at 0 and the last finishes exactly at 1 whatever the
+     count is. */
   --span: 0.3;
-  --start: calc(var(--n) * (1 - var(--span)) / 15);
+  --start: calc(var(--n) * (1 - var(--span)) / var(--n-max));
   --draw: clamp(0, calc((var(--feat-lines) - var(--start)) / var(--span)), 1);
 
   /* Scaled rather than stroked. The dash is the obvious reading of "stroke

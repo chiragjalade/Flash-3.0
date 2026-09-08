@@ -32,7 +32,12 @@ void main() {
 }
 `;
 
-export const REFRACT_FRAG = /* glsl */ `#version 300 es
+/** The shader is compiled with its sample count baked in: a loop bound has to be a
+ *  constant expression in GLSL ES 3.00, and a uniform one would force the compiler
+ *  to unroll for the worst case even when the effect is standing still. */
+export const refractFrag = (msaa: number) => REFRACT_FRAG_SRC.replace("MSAA", String(msaa));
+
+const REFRACT_FRAG_SRC = /* glsl */ `#version 300 es
 precision highp float;
 
 in vec2 vUv;
@@ -48,6 +53,7 @@ uniform float uFrost;
 uniform float uIorDispersion;
 uniform float uStep;       // derivative step, in input pixels
 uniform float uWash;       // white laid over the result, 0..1
+uniform vec2  uPhase;      // pattern offset, in pattern periods (see PHASE_PERIOD)
 
 const float PI = 3.14159265358979323846;
 
@@ -82,6 +88,13 @@ float vnoise(vec3 p) {
 
 float patternHeight(vec2 p, mat2 rot, float invSize) {
   vec2 pos = rot * (p - uCenter) * invSize;
+  // The only addition to Figma's program. It slides the pattern through itself, and
+  // it is applied BEFORE the zigzag so the y term travels the wave down the columns
+  // rather than merely sliding the whole field sideways — one drift, two motions.
+  //
+  // Both components are exactly periodic (see PHASE_PERIOD), so the field returns to
+  // itself and the loop has no seam to hide.
+  pos += uPhase;
   // patternType 1: the columns are pushed sideways by a zigzag running down them,
   // which is what stops the field reading as a plain corduroy.
   pos.x += zigzag(pos.y, 0.15, 0.6);
@@ -125,10 +138,12 @@ void main() {
   float iorG = 1.333;
   float iorB = 1.333 - uIorDispersion;
 
-  // 6x6 supersampling, as in the original. The pattern's edges are where the
-  // displacement changes fastest, so a single sample per pixel aliases into visible
-  // stair-stepping across the whole field. This runs once, not per frame.
-  const int N = 6;
+  // Supersampling. The pattern's edges are where the displacement changes fastest —
+  // the refraction cuts off abruptly at total internal reflection — so a single
+  // sample per pixel aliases into visible stair-stepping across the whole field.
+  // Figma's own program takes 6x6 because it renders once; animating means paying
+  // for it every frame, and the count is set from JS accordingly.
+  const int N = MSAA;
   vec4 accum = vec4(0.0);
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++) {
@@ -149,6 +164,16 @@ void main() {
   fragColor = vec4(mix(accum.rgb, vec3(1.0), uWash), 1.0);
 }
 `;
+
+/** How far the phase has to travel for the field to be exactly itself again, in
+ *  each axis. x is one period of `fract`; y is one period of the zigzag, whose
+ *  frequency is 0.15, and which is the slower of the two. Drifting by these rather
+ *  than by round numbers is what makes the loop seamless instead of nearly so. */
+export const PHASE_PERIOD = [1, 1 / 0.15] as const;
+
+/** Seconds for a full traverse of each axis. Deliberately coprime-ish, so the pair
+ *  only realigns every few minutes and the surface never reads as a short loop. */
+export const PHASE_SECONDS = [26, 41] as const;
 
 /** Every parameter of the shader instance on 1722:151, as Figma stores them, with
  *  the derivations its runtime applies before they reach the program. Kept in the
