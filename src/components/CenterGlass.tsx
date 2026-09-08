@@ -1,0 +1,165 @@
+import { useEffect, useRef } from "react";
+import { REFRACT_FRAG, REFRACT_VERT, refractionUniforms } from "../shaders/patternRefraction";
+
+/** The centre area's own size in the frame. The shader works in input pixels — the
+ *  pattern period, the refraction distance and the derivative step are all absolute
+ *  — so it has to run in the design's coordinate space or it stops being the same
+ *  effect. Rendering at a multiple of it and scaling the three lengths to match is
+ *  the only way to gain resolution without changing the picture. */
+const FRAME_W = 800;
+const FRAME_H = 500;
+const SCALE = 2;
+
+/** Layer 1722:149, the plate the photograph sits on. It shows through wherever the
+ *  image does not cover, so it has to be under it in the input too. */
+const PLATE = "#f0f0f0";
+
+/** The background blur on the layer, in frame units. */
+const BACKDROP_BLUR = 25;
+
+function compile(gl: WebGL2RenderingContext, type: number, src: string) {
+  const sh = gl.createShader(type)!;
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh);
+    gl.deleteShader(sh);
+    throw new Error(`pattern refraction: ${log}`);
+  }
+  return sh;
+}
+
+/**
+ * The centre area's surface: layers 1722:150 and 1722:151 of frame 1722:3, together.
+ *
+ * The photograph is not drawn as a picture and then covered — it is the shader's
+ * INPUT, and what you see is the refraction of it. That is why the panel in the
+ * frame looks nothing like the photograph the file references: an office desk,
+ * blurred and then displaced by 770 units through a zigzag pattern, mirrored where
+ * the rays land outside it. Drawing the photograph normally and blurring it, which
+ * is what stood here before, gets the colours right and the material completely
+ * wrong.
+ *
+ * It renders once. Figma's manifest declares the effect `isAnimated: false` and
+ * nothing here is driven by scroll, so a second frame would draw exactly the first
+ * one again — the only redraw is on a resize that changes the backing store, and
+ * even that only happens because the input is rasterised at device resolution.
+ */
+export default function CenterGlass({ src }: { src: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const w = FRAME_W * SCALE;
+    const h = FRAME_H * SCALE;
+    canvas.width = w;
+    canvas.height = h;
+
+    const gl = canvas.getContext("webgl2", { alpha: false, antialias: false });
+    if (!gl) {
+      // No WebGL2: leave the element blank and let the plain photograph underneath
+      // it show, rather than painting a flat rectangle over the panel.
+      canvas.dataset.gl = "off";
+      return;
+    }
+
+    let disposed = false;
+    let program: WebGLProgram | null = null;
+    let tex: WebGLTexture | null = null;
+    let vao: WebGLVertexArrayObject | null = null;
+    let buf: WebGLBuffer | null = null;
+
+    const image = new Image();
+    image.decoding = "async";
+
+    const draw = () => {
+      if (disposed) return;
+
+      // The shader's input is the layer's BACKDROP: the plate, the photograph over
+      // it under `cover`, and the layer's own 25px background blur — in that order,
+      // before any refraction. Rasterised on a 2D canvas because that is where a
+      // Gaussian of this radius is cheapest and exact; doing it in GL would mean a
+      // two-pass blur for one still frame.
+      const src2d = document.createElement("canvas");
+      src2d.width = w;
+      src2d.height = h;
+      const ctx = src2d.getContext("2d")!;
+      ctx.fillStyle = PLATE;
+      ctx.fillRect(0, 0, w, h);
+      ctx.filter = `blur(${BACKDROP_BLUR * SCALE}px)`;
+      // `cover`, computed rather than relying on any CSS: the input has to be the
+      // same framing the frame's own image layer has.
+      const s = Math.max(w / image.width, h / image.height);
+      const dw = image.width * s;
+      const dh = image.height * s;
+      ctx.drawImage(image, (w - dw) / 2, (h - dh) / 2, dw, dh);
+      ctx.filter = "none";
+
+      const vs = compile(gl, gl.VERTEX_SHADER, REFRACT_VERT);
+      const fs = compile(gl, gl.FRAGMENT_SHADER, REFRACT_FRAG);
+      program = gl.createProgram()!;
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        throw new Error(`pattern refraction: ${gl.getProgramInfoLog(program)}`);
+      }
+      gl.useProgram(program);
+
+      buf = gl.createBuffer();
+      vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(program, "aPos");
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+      tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      // The refracted rays land anywhere in the plane; the mirror fold is done in
+      // the shader, so the sampler only has to stop the fold itself wrapping.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src2d);
+
+      const u = refractionUniforms(SCALE);
+      const set = (name: string) => gl.getUniformLocation(program!, name);
+      gl.uniform1i(set("uInput"), 0);
+      // The centre is a fraction of the input's size, so it scales with it already.
+      gl.uniform2f(set("uCenter"), (u.centerPct[0] / 100) * w, (u.centerPct[1] / 100) * h);
+      gl.uniform1f(set("uAngle"), u.angle);
+      gl.uniform1f(set("uSize"), u.size);
+      gl.uniform1f(set("uAmount"), u.amount);
+      gl.uniform1f(set("uSeamless"), u.seamless);
+      gl.uniform1f(set("uFrost"), u.frost);
+      gl.uniform1f(set("uIorDispersion"), u.iorDispersion);
+      gl.uniform1f(set("uStep"), u.step);
+      gl.uniform1f(set("uWash"), u.wash);
+
+      gl.viewport(0, 0, w, h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      canvas.dataset.gl = "on";
+    };
+
+    image.onload = draw;
+    image.src = src;
+
+    return () => {
+      disposed = true;
+      if (!gl) return;
+      if (tex) gl.deleteTexture(tex);
+      if (buf) gl.deleteBuffer(buf);
+      if (vao) gl.deleteVertexArray(vao);
+      if (program) gl.deleteProgram(program);
+    };
+  }, [src]);
+
+  return <canvas className="feat__center-glass" ref={canvasRef} aria-hidden />;
+}

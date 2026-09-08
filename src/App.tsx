@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
+import AbstractLines from "./components/AbstractLines";
 import EdgeMotifs from "./components/EdgeMotifs";
+import Features from "./components/Features";
 import Hero from "./components/Hero";
 import Nav from "./components/Nav";
 import Problem from "./components/Problem";
@@ -28,8 +30,12 @@ export default function App() {
       {/* Fixed to the viewport, so the pages scroll past a single pair rather than
           each carrying its own copy. */}
       <EdgeMotifs recessed={menuOpen} toneRef={toneRef} alloyRef={alloyRef} />
+      {/* Also fixed, and painted after the ornaments so it sits over them where the
+          two overlap — the order frame 1722:3 puts them in. */}
+      <AbstractLines />
       <Hero recessed={menuOpen} />
       <Problem recessed={menuOpen} toneRef={toneRef} alloyRef={alloyRef} />
+      <Features />
       <Nav open={menuOpen} onOpenChange={setMenuOpen} />
     </>
   );

@@ -1,0 +1,48 @@
+/* One definition of the window, on the root, because two unrelated things run off
+   it: these lines, which are fixed to the viewport, and the setup shot's entrance
+   scale, which is inside the section. --feat-through is published by Features.tsx
+   and runs 0 to 1 as the page rises over the problem section, then 1 to 2 across the
+   pinned travel — a single continuous scalar, because --f alone is zero for the
+   whole of the rise and so cannot express anything that starts during it.
+
+   The window opens a third of the way through the rise, so the strokes are already
+   drawing as the page comes up, and closes a fifth of the way into the pinned
+   travel, before the plate opens behind the setup shot. */
+:root {
+  --feat-lines: clamp(0, calc((var(--feat-through, 0) - 0.3) / 0.88), 1);
+}
+
+.abstract-lines {
+  position: fixed;
+  inset: 0;
+  z-index: 0; /* behind the sections, with the edge ornaments */
+  pointer-events: none;
+  overflow: hidden;
+  overflow: clip;
+}
+
+.abstract-line {
+  position: absolute;
+  width: 1px;
+  /* 1722:127's own stroke. */
+  background: #c5c5c5;
+
+  /* Its own slice of the window. Sixteen strokes, each starting before the last has
+     finished, so they read as a sequence rather than as a queue that stalls between
+     entries. --n is the stroke's index, written from the markup; the divisor is one
+     less than the count, so the first starts at 0 and the last finishes exactly at
+     1. */
+  --span: 0.3;
+  --start: calc(var(--n) * (1 - var(--span)) / 15);
+  --draw: clamp(0, calc((var(--feat-lines) - var(--start)) / var(--span)), 1);
+
+  /* Scaled rather than stroked. The dash is the obvious reading of "stroke
+     animation", but a dash in a box stretched to the whole viewport is exactly
+     where dash length and `vector-effect: non-scaling-stroke` disagree — the dash is
+     measured in screen pixels while `pathLength` normalises in user ones, and the
+     two differ by whatever the box is scaled by. (`pathLength` is an SVG attribute,
+     not a CSS property, so setting it in a stylesheet does nothing at all.) A
+     straight line growing from one end is what a stroke draw LOOKS like, and this is
+     exact at every viewport. */
+  transform: scaleY(var(--draw));
+}
